@@ -1,18 +1,17 @@
 #!/bin/bash
 
-# Script interativo para consultar CPFs na API do Portal da Transparência
-# Requer: curl, jq
+# Script simples e direto: consulta CPFs na API do Portal da Transparência e exibe o resultado no terminal
 
-echo "=== Consulta de CPFs no Portal da Transparência ==="
-read -p "SUA CHAVE DO GOV.BR:" CHAVE
+echo "=== Consulta de CPF (Portal da Transparência) ==="
+read -p "Cole sua chave da API do dados.gov.br: " CHAVE
 
 if [ -z "$CHAVE" ]; then
   echo "Chave não fornecida. Encerrando."
   exit 1
 fi
 
-echo "Cole os CPFs que deseja consultar (um por linha)."
-echo "Quando terminar, pressione Ctrl+D (no final da lista):"
+echo "Cole os CPFs (um por linha, tecle Ctrl+D para finalizar):"
+
 CPFS=()
 while read CPF; do
   CPF=$(echo "$CPF" | tr -d -c '0-9')
@@ -27,8 +26,6 @@ if [ $TOTAL -eq 0 ]; then
   exit 1
 fi
 
-mkdir -p resultados
-
 COUNT=1
 for CPF in "${CPFS[@]}"; do
   if [ ${#CPF} -ne 11 ]; then
@@ -39,9 +36,8 @@ for CPF in "${CPFS[@]}"; do
   echo "[$COUNT/$TOTAL] Consultando $CPF..."
   RESP=$(curl -s -H "chave-api-dados: $CHAVE" "https://api.portaldatransparencia.gov.br/api-de-dados/pessoa-fisica?cpf=$CPF")
   if [ "$RESP" != "[]" ] && [ -n "$RESP" ]; then
-    echo "===> Resultado encontrado para $CPF:"
+    echo "===> Resultado para $CPF:"
     echo "$RESP" | jq .
-    echo "$RESP" > "resultados/$CPF.json"
   else
     echo "Nenhuma informação pública encontrada para $CPF."
   fi
@@ -49,4 +45,4 @@ for CPF in "${CPFS[@]}"; do
   sleep 1
 done
 
-echo "Consulta finalizada. Resultados salvos em ./resultados/"
+echo "Consulta finalizada."
