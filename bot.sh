@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# Consulta CPF no Portal da Transparência e mostra o campo "cpf" mascarado corretamente
+# Script "hacker style" para consultar CPF, nome e nascimento no Portal da Transparência
+# Exibe o CPF completo, nome e data de nascimento, separados por linhas e numeração
 
-echo "=== Consulta de CPF (Portal da Transparência) ==="
-read -p "Cole sua chave da API do dados.gov.br: " CHAVE
+echo -e "\e[1;32m[+] Portal da Transparência - Consulta CPF [HACKER STYLE]\e[0m"
+read -p "$(echo -e '\e[1;34m[?]\e[0m') Cole sua chave da API do dados.gov.br: " CHAVE
 
 if [ -z "$CHAVE" ]; then
-  echo "Chave não fornecida. Encerrando."
+  echo -e "\e[1;31m[!]\e[0m Chave não fornecida. Encerrando."
   exit 1
 fi
 
-echo "Cole os CPFs (um por linha, tecle Ctrl+D para finalizar):"
+echo -e "\e[1;33m[!] Cole os CPFs (um por linha, tecle Ctrl+D para finalizar):\e[0m"
 
 CPFS=()
 while read CPF; do
@@ -22,36 +23,39 @@ done
 
 TOTAL=${#CPFS[@]}
 if [ $TOTAL -eq 0 ]; then
-  echo "Nenhum CPF informado. Encerrando."
+  echo -e "\e[1;31m[!]\e[0m Nenhum CPF informado. Encerrando."
   exit 1
 fi
-
-# Função para mascarar CPF como NNN.***.***-NN
-mascara_cpf() {
-  local cpf="$1"
-  echo "${cpf:0:3}.***.***-${cpf:9:2}"
-}
 
 COUNT=1
 for CPF in "${CPFS[@]}"; do
   if [ ${#CPF} -ne 11 ]; then
-    echo "[$COUNT/$TOTAL] CPF inválido: $CPF"
+    echo -e "\e[1;31m[!]\e[0m [$COUNT/$TOTAL] CPF inválido: $CPF"
     ((COUNT++))
     continue
   fi
-  MASKED=$(mascara_cpf "$CPF")
-  echo "[$COUNT/$TOTAL] Consultando $MASKED..."
+
+  echo -e "\e[1;32m------------------------------\e[0m"
+  echo -e "\e[1;36m($COUNT)\e[0m Consultando: \e[1;37m$CPF\e[0m"
   RESP=$(curl -s -H "chave-api-dados: $CHAVE" "https://api.portaldatransparencia.gov.br/api-de-dados/pessoa-fisica?cpf=$CPF")
-  if [ "$RESP" != "[]" ] && [ -n "$RESP" ]; then
-    # Substitui valor do campo "cpf" pelo mascarado antes de exibir
-    NEW_JSON=$(echo "$RESP" | jq --arg mcpf "$MASKED" 'if type=="array" then map(.cpf = $mcpf) else .cpf = $mcpf end')
-    echo "===> Resultado para $MASKED:"
-    echo "$NEW_JSON" | jq .
+  
+  # Extrai nome e nascimento (pode ser nulo se não vier no JSON)
+  NOME=$(echo "$RESP" | jq -r 'if type=="array" then .[0].nome else .nome end // empty')
+  NASC=$(echo "$RESP" | jq -r 'if type=="array" then .[0].dataNascimento else .dataNascimento end // empty')
+
+  if [ -n "$NOME" ]; then
+    echo -e "\e[1;32mCPF:\e[0m $CPF"
+    echo -e "\e[1;32mNOME:\e[0m $NOME"
+    if [ -n "$NASC" ] && [ "$NASC" != "null" ]; then
+      echo -e "\e[1;32mNASCIMENTO:\e[0m $NASC"
+    else
+      echo -e "\e[1;31mNASCIMENTO:\e[0m Não informado"
+    fi
   else
-    echo "Nenhuma informação pública encontrada para $MASKED."
+    echo -e "\e[1;31m[!] Dados não encontrados para $CPF\e[0m"
   fi
   ((COUNT++))
   sleep 1
 done
-
-echo "Consulta finalizada."
+echo -e "\e[1;32m------------------------------\e[0m"
+echo -e "\e[1;32mConsulta finalizada!\e[0m"
