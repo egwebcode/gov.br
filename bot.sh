@@ -4,7 +4,7 @@
 # Requer: curl, jq
 
 echo "=== Consulta de CPFs no Portal da Transparência ==="
-read -p "7f3811fdc94fa8180714436c444a56fb" CHAVE
+read -p "SUA CHAVE DO GOV.BR:" CHAVE
 
 if [ -z "$CHAVE" ]; then
   echo "Chave não fornecida. Encerrando."
