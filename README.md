@@ -19,7 +19,7 @@ Este repositório contém um script Bash (`CPF.sh`) para consultar CPFs utilizan
 1. Clone este repositório:
    ```bash
    git clone https://github.com/egwebcode/consultar.com.br.git
-   cd consultar.com.br
+   cd gov.br
    ```
 2. Dê permissão de execução ao script:
    ```bash
@@ -35,7 +35,7 @@ Este repositório contém um script Bash (`CPF.sh`) para consultar CPFs utilizan
 
 1. Execute o script:
    ```bash
-   ./CPF.sh
+   bash CPF.sh
    ```
 2. Insira sua chave de API do dados.gov.br quando solicitado.
 3. Cole os CPFs a serem consultados, um por linha. Tecle `Ctrl+D` para finalizar a entrada.
