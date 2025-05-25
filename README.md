@@ -1,73 +1,38 @@
-
 # gov.br
 
-Consulta automatizada de CPFs no Portal da Transparência (dados.gov.br) via Bash Script.
+Consulta rápida de CPF no Portal da Transparência (API oficial do governo federal)
 
-## Descrição
+## Instalação rápida (Termux ou Linux)
 
-Este repositório contém um script Bash (`CPF.sh`) para consultar CPFs utilizando a API do Portal da Transparência do Governo Federal. O script lê uma lista de CPFs, faz as consultas e salva os resultados válidos em um arquivo `CPF_VALIDOS.txt`.
+```bash
+pkg update -y && pkg upgrade -y && pkg install curl jq -y
+curl -O https://raw.githubusercontent.com/egwebcode/gov.br
+chmod +x CPF.sh
+./CPF.sh
+```
 
-## Requisitos
+## O que faz?
 
-- Bash (Linux, macOS ou WSL)
-- `curl`
-- [`jq`](https://stedolan.github.io/jq/download/) (para processar JSON)
-- Uma chave de API válida do [dados.gov.br](https://dados.gov.br/)
+- Consulta um ou vários CPFs na base do gov.br
+- Mostra CPF, nome e nascimento (ou "NÃO INFORMADO")
+- No final, você pode salvar todos os válidos em `CPF_VALIDOS.txt` (sempre no mesmo arquivo, organizado)
+- Pode rodar e salvar quantas vezes quiser, sempre adicionando no arquivo
 
-## Instalação
+## Exemplo de uso
 
-1. Clone este repositório:
-   ```bash
-   git clone https://github.com/egwebcode/gov.br
-   cd gov.br
-   ```
-2. Dê permissão de execução ao script:
-   ```bash
-   chmod +x CPF.sh
-   ```
-3. Instale o `jq` caso não tenha:
-   - **Debian/Ubuntu**: `sudo apt install jq`
-   - **Fedora**: `sudo dnf install jq`
-   - **macOS (brew)**: `brew install jq`
-   - **Windows (WSL)**: use o comando do seu Linux
+```
+CPF: 12345678900
+NOME: JOÃO DA SILVA
+NASCIMENTO: 1980-01-01
+------------------------------
+CPF: 98765432100
+NOME: MARIA OLIVEIRA
+NASCIMENTO: NÃO INFORMADO
+------------------------------
+```
 
-## Como Usar
+## Observação
 
-1. Execute o script:
-   ```bash
-   bash CPF.sh
-   ```
-2. Insira sua chave de API do dados.gov.br quando solicitado.
-3. Cole os CPFs a serem consultados, um por linha. Tecle `Ctrl+D` para finalizar a entrada.
-4. O script fará as consultas e mostrará os resultados no terminal.
-5. Ao final, escolha:
-   - `01` para salvar todos os resultados válidos em `CPF_VALIDOS.txt`
-   - `02` para sair sem salvar
-
-## Saída
-
-- Os resultados válidos são salvos no arquivo `CPF_VALIDOS.txt` no formato:
-
-  ```
-  CPF: <número>
-  NOME: <nome>
-  NASCIMENTO: <data>
-  ------------------------------
-  ```
-
-## Observações
-
-- O script valida se os CPFs têm 11 dígitos.
-- Cada requisição aguarda 1 segundo para evitar bloqueios na API.
-- Apenas CPFs com resultado válido são salvos.
-
-## Licença
-
-Este projeto é open-source e está sob a licença MIT.
-
----
-
-# Desenvolvido por EG Webcode TODOS DIRETOS RESERVADOS © EG WEBCODE
-
-# REDES SOCIAIS
-INSTAGRAM: https://instagram.com/egwebcode
+- Usa apenas dependências simples e públicas (`curl`, `jq`)
+- Consulta apenas dados públicos do Portal da Transparência (API gov.br)
+e preciso ter um token do gov.br para conseguir acessar
