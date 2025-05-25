@@ -1,5 +1,5 @@
 
-# consultar.com.br
+# gov.br
 
 Consulta automatizada de CPFs no Portal da Transparência (dados.gov.br) via Bash Script.
 
@@ -38,7 +38,7 @@ Este repositório contém um script Bash (`CPF.sh`) para consultar CPFs utilizan
    ./CPF.sh
    ```
 2. Insira sua chave de API do dados.gov.br quando solicitado.
-3. Cole os CPFs a serem consultados, um por linha. Tecle **Ctrl+D** para finalizar a entrada.
+3. Cole os CPFs a serem consultados, um por linha. Tecle `Ctrl+D` para finalizar a entrada.
 4. O script fará as consultas e mostrará os resultados no terminal.
 5. Ao final, escolha:
    - `01` para salvar todos os resultados válidos em `CPF_VALIDOS.txt`
