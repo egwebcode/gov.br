@@ -5,7 +5,9 @@ Consulta rápida de CPF no Portal da Transparência (API oficial do governo fede
 ## Instalação rápida (Termux ou Linux)
 
 ```bash
-pkg update -y && pkg upgrade -y && pkg install curl jq -y
+pkg update -y && pkg upgrade -y && pkg install
+git clone https://github.com/egwebcode/gov.br
+curl jq -y
 curl -O https://raw.githubusercontent.com/egwebcode/gov.br
 chmod +x CPF.sh
 ./CPF.sh
