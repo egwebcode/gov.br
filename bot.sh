@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script "hacker style" para consultar CPF, nome e nascimento no Portal da Transparência
-# Exibe o CPF completo, nome e data de nascimento, separados por linhas e numeração
+# Script hacker: Consulta CPFs no Portal da Transparência
+# Mostra CPF, NOME, NASCIMENTO (se houver), organiza os dados, e permite salvar resultados válidos em .txt ao final
 
 echo -e "\e[1;32m[+] Portal da Transparência - Consulta CPF [HACKER STYLE]\e[0m"
 read -p "$(echo -e '\e[1;34m[?]\e[0m') Cole sua chave da API do dados.gov.br: " CHAVE
@@ -28,6 +28,7 @@ if [ $TOTAL -eq 0 ]; then
 fi
 
 COUNT=1
+RESULTADOS=()
 for CPF in "${CPFS[@]}"; do
   if [ ${#CPF} -ne 11 ]; then
     echo -e "\e[1;31m[!]\e[0m [$COUNT/$TOTAL] CPF inválido: $CPF"
@@ -38,19 +39,22 @@ for CPF in "${CPFS[@]}"; do
   echo -e "\e[1;32m------------------------------\e[0m"
   echo -e "\e[1;36m($COUNT)\e[0m Consultando: \e[1;37m$CPF\e[0m"
   RESP=$(curl -s -H "chave-api-dados: $CHAVE" "https://api.portaldatransparencia.gov.br/api-de-dados/pessoa-fisica?cpf=$CPF")
-  
-  # Extrai nome e nascimento (pode ser nulo se não vier no JSON)
+
   NOME=$(echo "$RESP" | jq -r 'if type=="array" then .[0].nome else .nome end // empty')
   NASC=$(echo "$RESP" | jq -r 'if type=="array" then .[0].dataNascimento else .dataNascimento end // empty')
 
   if [ -n "$NOME" ]; then
     echo -e "\e[1;32mCPF:\e[0m $CPF"
     echo -e "\e[1;32mNOME:\e[0m $NOME"
-    if [ -n "$NASC" ] && [ "$NASC" != "null" ]; then
+    if [[ -n "$NASC" && "$NASC" != "null" && "$NASC" != "" ]]; then
       echo -e "\e[1;32mNASCIMENTO:\e[0m $NASC"
+      NASC_SAIDA="$NASC"
     else
       echo -e "\e[1;31mNASCIMENTO:\e[0m Não informado"
+      NASC_SAIDA="Não informado"
     fi
+    # Salva resultado válido para possível exportação
+    RESULTADOS+=("CPF: $CPF\nNOME: $NOME\nNASCIMENTO: $NASC_SAIDA\n------------------------------")
   else
     echo -e "\e[1;31m[!] Dados não encontrados para $CPF\e[0m"
   fi
@@ -59,3 +63,26 @@ for CPF in "${CPFS[@]}"; do
 done
 echo -e "\e[1;32m------------------------------\e[0m"
 echo -e "\e[1;32mConsulta finalizada!\e[0m"
+
+# Menu final: salvar ou sair
+while true; do
+  echo -e "\n\e[1;33mO que deseja fazer?\e[0m"
+  echo -e "\e[1;32m[01]\e[0m Salvar todos os resultados válidos em um arquivo .txt"
+  echo -e "\e[1;31m[02]\e[0m Sair"
+  read -p "Escolha uma opção [01/02]: " OPCAO
+  case $OPCAO in
+    01|1)
+      ARQ="resultados_validos_$(date +%Y%m%d_%H%M%S).txt"
+      printf "%b\n" "${RESULTADOS[@]}" > "$ARQ"
+      echo -e "\e[1;32m[✓] Resultados salvos em:\e[0m $ARQ"
+      break
+      ;;
+    02|2)
+      echo -e "\e[1;31mSaindo...\e[0m"
+      break
+      ;;
+    *)
+      echo -e "\e[1;31mOpção inválida!\e[0m"
+      ;;
+  esac
+done
