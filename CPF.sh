@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Script hacker: Consulta CPFs no Portal da Transparência
-# Mostra CPF, NOME, NASCIMENTO (se houver), organiza os dados, e permite salvar resultados válidos em .txt ao final
+# Consulta CPFs no Portal da Transparência - Adiciona todos válidos organizados em CPF_VALIDOS.txt (APPEND!)
 
-echo -e "\e[1;32m[+] Portal da Transparência - Consulta CPF [HACKER STYLE]\e[0m"
+echo -e "\e[1;32m[+] Portal da Transparência - Consulta CPF [EG WEBCODE]\e[0m"
 read -p "$(echo -e '\e[1;34m[?]\e[0m') Cole sua chave da API do dados.gov.br: " CHAVE
 
 if [ -z "$CHAVE" ]; then
@@ -44,16 +43,20 @@ for CPF in "${CPFS[@]}"; do
   NASC=$(echo "$RESP" | jq -r 'if type=="array" then .[0].dataNascimento else .dataNascimento end // empty')
 
   if [ -n "$NOME" ]; then
-    echo -e "\e[1;32mCPF:\e[0m $CPF"
-    echo -e "\e[1;32mNOME:\e[0m $NOME"
     if [[ -n "$NASC" && "$NASC" != "null" && "$NASC" != "" ]]; then
-      echo -e "\e[1;32mNASCIMENTO:\e[0m $NASC"
       NASC_SAIDA="$NASC"
     else
-      echo -e "\e[1;31mNASCIMENTO:\e[0m Não informado"
-      NASC_SAIDA="Não informado"
+      NASC_SAIDA="NÃO INFORMADO"
     fi
-    # Salva resultado válido para possível exportação
+    # Exibe no terminal
+    echo -e "\e[1;32mCPF:\e[0m $CPF"
+    echo -e "\e[1;32mNOME:\e[0m $NOME"
+    if [ "$NASC_SAIDA" == "NÃO INFORMADO" ]; then
+      echo -e "\e[1;31mNASCIMENTO:\e[0m NÃO INFORMADO"
+    else
+      echo -e "\e[1;32mNASCIMENTO:\e[0m $NASC_SAIDA"
+    fi
+    # Salva resultado válido para possível exportação (append)
     RESULTADOS+=("CPF: $CPF\nNOME: $NOME\nNASCIMENTO: $NASC_SAIDA\n------------------------------")
   else
     echo -e "\e[1;31m[!] Dados não encontrados para $CPF\e[0m"
@@ -67,14 +70,13 @@ echo -e "\e[1;32mConsulta finalizada!\e[0m"
 # Menu final: salvar ou sair
 while true; do
   echo -e "\n\e[1;33mO que deseja fazer?\e[0m"
-  echo -e "\e[1;32m[01]\e[0m Salvar todos os resultados válidos em um arquivo .txt"
+  echo -e "\e[1;32m[01]\e[0m Adicionar todos os resultados válidos em \e[1;37mCPF_VALIDOS.txt\e[0m"
   echo -e "\e[1;31m[02]\e[0m Sair"
   read -p "Escolha uma opção [01/02]: " OPCAO
   case $OPCAO in
     01|1)
-      ARQ="resultados_validos_$(date +%Y%m%d_%H%M%S).txt"
-      printf "%b\n" "${RESULTADOS[@]}" > "$ARQ"
-      echo -e "\e[1;32m[✓] Resultados salvos em:\e[0m $ARQ"
+      printf "%b\n" "${RESULTADOS[@]}" >> CPF_VALIDOS.txt
+      echo -e "\e[1;32m[✓] Resultados adicionados em:\e[0m CPF_VALIDOS.txt"
       break
       ;;
     02|2)
