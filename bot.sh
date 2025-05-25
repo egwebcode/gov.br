@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script simples e direto: consulta CPFs na API do Portal da Transparência e exibe o resultado no terminal
+# Consulta CPF no Portal da Transparência e mostra o campo "cpf" mascarado corretamente
 
 echo "=== Consulta de CPF (Portal da Transparência) ==="
 read -p "Cole sua chave da API do dados.gov.br: " CHAVE
@@ -26,6 +26,12 @@ if [ $TOTAL -eq 0 ]; then
   exit 1
 fi
 
+# Função para mascarar CPF como NNN.***.***-NN
+mascara_cpf() {
+  local cpf="$1"
+  echo "${cpf:0:3}.***.***-${cpf:9:2}"
+}
+
 COUNT=1
 for CPF in "${CPFS[@]}"; do
   if [ ${#CPF} -ne 11 ]; then
@@ -33,13 +39,16 @@ for CPF in "${CPFS[@]}"; do
     ((COUNT++))
     continue
   fi
-  echo "[$COUNT/$TOTAL] Consultando $CPF..."
+  MASKED=$(mascara_cpf "$CPF")
+  echo "[$COUNT/$TOTAL] Consultando $MASKED..."
   RESP=$(curl -s -H "chave-api-dados: $CHAVE" "https://api.portaldatransparencia.gov.br/api-de-dados/pessoa-fisica?cpf=$CPF")
   if [ "$RESP" != "[]" ] && [ -n "$RESP" ]; then
-    echo "===> Resultado para $CPF:"
-    echo "$RESP" | jq .
+    # Substitui valor do campo "cpf" pelo mascarado antes de exibir
+    NEW_JSON=$(echo "$RESP" | jq --arg mcpf "$MASKED" 'if type=="array" then map(.cpf = $mcpf) else .cpf = $mcpf end')
+    echo "===> Resultado para $MASKED:"
+    echo "$NEW_JSON" | jq .
   else
-    echo "Nenhuma informação pública encontrada para $CPF."
+    echo "Nenhuma informação pública encontrada para $MASKED."
   fi
   ((COUNT++))
   sleep 1
