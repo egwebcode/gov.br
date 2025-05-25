@@ -18,7 +18,7 @@ Este repositório contém um script Bash (`CPF.sh`) para consultar CPFs utilizan
 
 1. Clone este repositório:
    ```bash
-   git clone https://github.com/egwebcode/consultar.com.br.git
+   git clone https://github.com/egwebcode/gov.br
    cd gov.br
    ```
 2. Dê permissão de execução ao script:
