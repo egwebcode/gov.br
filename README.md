@@ -1,40 +1,15 @@
-# gov.br
+# GOVBR.sh
+atualize seu termux e use `pip install zq
+bash govbr.sh` depois disso coloque sua chave que o gov.br disponibiliza para você e copie e cole depois e so fazer as consultas coloque um cpf válido para consultar e vai vir os resultados
 
-Consulta rápida de CPF no Portal da Transparência (API oficial do governo federal)
-
-## Instalação rápida (Termux ou Linux)
-
-```bash
-pkg update -y && pkg upgrade -y && pkg install
-git clone https://github.com/egwebcode/gov.br
-curl jq -y
-curl -O https://raw.githubusercontent.com/egwebcode/gov.br
-chmod +x CPF.sh
-./CPF.sh
-```
-
-## O que faz?
-
-- Consulta um ou vários CPFs na base do gov.br
-- Mostra CPF, nome e nascimento (ou "NÃO INFORMADO")
-- No final, você pode salvar todos os válidos em `CPF_VALIDOS.txt` (sempre no mesmo arquivo, organizado)
-- Pode rodar e salvar quantas vezes quiser, sempre adicionando no arquivo
-
-## Exemplo de uso
-
-```
-CPF: 12345678900
-NOME: JOÃO DA SILVA
-NASCIMENTO: 1980-01-01
-------------------------------
-CPF: 98765432100
-NOME: MARIA OLIVEIRA
-NASCIMENTO: NÃO INFORMADO
-------------------------------
-```
-
-## Observação
-
-- Usa apenas dependências simples e públicas (`curl`, `jq`)
-- Consulta apenas dados públicos do Portal da Transparência (API gov.br)
-e preciso ter um token do gov.br para conseguir acessar
+# buscarIP.py
+o buscarIP.py ele vai consultar a localização pelo IP vai mostrar desse jeito
+`localização para o IP:
+País: BR
+Região: ANONIMA
+Cidade: GIT HUB
+Organização: EG WEBCODE
+Localização (latitude, longitude):`
+para usar instale o codigo
+`pkg install python & pkg install python3`
+e para executar e `python or python3 buscarIP.py`
