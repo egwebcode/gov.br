@@ -1,5 +1,5 @@
 # INSTALAR TERMUX
-atualizar o termux use `pkg update` & `pkg upgrade` depois `pkg install git` para baixar o repositorio use `git clone https://gihub.com/egwebcode/gov.br` e depois instale dependencias como `pkg install python`
+atualizar o termux use `pkg update` & `pkg upgrade` depois `pkg install git` para baixar o repositorio use `git clone https://github.com/egwebcode/gov.br` e depois instale dependencias como `pkg install python`
 `pkg install python3` e por último `pip install zq`
 
 # CPF.sh
