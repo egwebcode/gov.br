@@ -9,3 +9,4 @@ para usar instale o codigo
 e para executar e `python or python3 buscarIP.py`
 
 # numero.py
+para usar instale `python & python3` para executar use `python numero.py` ou `python3 numero.py` a função e consultar informações basica de um número de telefone etc
