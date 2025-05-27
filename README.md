@@ -7,3 +7,5 @@ o buscarIP.py ele vai consultar a localização pelo IP
 para usar instale o codigo
 `pkg install python & pkg install python3`
 e para executar e `python or python3 buscarIP.py`
+
+# numero.py
