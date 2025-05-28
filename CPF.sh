@@ -56,8 +56,13 @@ for CPF in "${CPFS[@]}"; do
     else
       echo -e "\e[1;32mNASCIMENTO:\e[0m $NASC_SAIDA"
     fi
-    # Salva resultado válido para possível exportação (append)
-    RESULTADOS+=("CPF: $CPF\nNOME: $NOME\nNASCIMENTO: $NASC_SAIDA\n------------------------------")
+    # Prepara bloco para salvar e verifica duplicata
+    BLOCO="CPF: $CPF\nNOME: $NOME\nNASCIMENTO: $NASC_SAIDA\n------------------------------"
+    if ! grep -qF "CPF: $CPF" CPF_VALIDOS.txt 2>/dev/null; then
+      RESULTADOS+=("$BLOCO")
+    else
+      echo -e "\e[1;33m[!] CPF $CPF já está salvo. Ignorando...\e[0m"
+    fi
   else
     echo -e "\e[1;31m[!] Dados não encontrados para $CPF\e[0m"
   fi
