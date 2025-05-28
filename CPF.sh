@@ -10,12 +10,12 @@ if [ -z "$CHAVE" ]; then
   exit 1
 fi
 
-echo -e "\e[1;33m[!] Digite os CPFs (um por vez). Para finalizar, pressione ENTER 3 vezes seguidas:\e[0m"
+echo -e "\e[1;33m[!] Cole os CPFs (um por linha). Para iniciar a consulta, pressione ENTER 3 vezes seguidas:\e[0m"
 
 CPFS=()
 EMPTY_LINES=0
 while true; do
-  read -p "> " CPF_RAW
+  read CPF_RAW
   CPF=$(echo "$CPF_RAW" | tr -d -c '0-9')
 
   if [ -z "$CPF_RAW" ]; then
