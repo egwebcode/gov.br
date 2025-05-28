@@ -10,14 +10,17 @@ if [ -z "$CHAVE" ]; then
   exit 1
 fi
 
-echo -e "\e[1;33m[!] Cole os CPFs (um por linha, tecle Ctrl+D para finalizar):\e[0m"
+echo -e "\e[1;33m[!] Digite os CPFs (um por vez). Pressione Enter em branco para começar:\e[0m"
 
 CPFS=()
-while read CPF; do
+while true; do
+  read -p "> " CPF
   CPF=$(echo "$CPF" | tr -d -c '0-9')
-  if [ -n "$CPF" ]; then
-    CPFS+=("$CPF")
+  if [ -z "$CPF" ]; then
+    # Linha vazia, termina a leitura e começa a consulta
+    break
   fi
+  CPFS+=("$CPF")
 done
 
 TOTAL=${#CPFS[@]}
