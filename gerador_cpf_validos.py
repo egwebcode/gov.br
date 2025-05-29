@@ -3,7 +3,7 @@ import socketserver
 import threading
 import os
 
-ARQUIVO = "cpfs_validos.txt"
+ARQUIVO = "wordlist_cpf.txt"
 
 def calcular_digito(cpf, peso_inicial):
     soma = sum(int(digito) * peso for digito, peso in zip(cpf, range(peso_inicial, 1, -1)))
