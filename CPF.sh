@@ -10,26 +10,48 @@ if [ -z "$CHAVE" ]; then
   exit 1
 fi
 
-echo -e "\e[1;33m[!] Cole os CPFs (um por linha). Para iniciar a consulta, pressione ENTER 3 vezes seguidas:\e[0m"
+# MODO DE ENTRADA
+echo -e "\e[1;33m[!] Como deseja fornecer os CPFs?\e[0m"
+echo -e "\e[1;32m[1]\e[0m Inserir manualmente"
+echo -e "\e[1;34m[2]\e[0m Ler de um arquivo .txt (um CPF por linha)"
+read -p "Escolha uma opção [1/2]: " MODO_ENTRADA
 
 CPFS=()
-EMPTY_LINES=0
-while true; do
-  read CPF_RAW
-  CPF=$(echo "$CPF_RAW" | tr -d -c '0-9')
 
-  if [ -z "$CPF_RAW" ]; then
-    ((EMPTY_LINES++))
-    if [ $EMPTY_LINES -ge 3 ]; then
-      break
-    fi
-  else
-    EMPTY_LINES=0
+if [[ "$MODO_ENTRADA" == "2" ]]; then
+  read -p "Nome do arquivo .txt (na mesma pasta do script): " NOME_ARQUIVO
+  CAMINHO="./$NOME_ARQUIVO"
+  if [ ! -f "$CAMINHO" ]; then
+    echo -e "\e[1;31m[!]\e[0m Arquivo '$NOME_ARQUIVO' não encontrado na pasta atual. Encerrando."
+    exit 1
+  fi
+
+  while IFS= read -r LINE; do
+    CPF=$(echo "$LINE" | tr -d -c '0-9')
     if [ -n "$CPF" ]; then
       CPFS+=("$CPF")
     fi
-  fi
-done
+  done < "$CAMINHO"
+else
+  echo -e "\e[1;33m[!] Cole os CPFs (um por linha). Para iniciar a consulta, pressione ENTER 3 vezes seguidas:\e[0m"
+  EMPTY_LINES=0
+  while true; do
+    read CPF_RAW
+    CPF=$(echo "$CPF_RAW" | tr -d -c '0-9')
+
+    if [ -z "$CPF_RAW" ]; then
+      ((EMPTY_LINES++))
+      if [ $EMPTY_LINES -ge 3 ]; then
+        break
+      fi
+    else
+      EMPTY_LINES=0
+      if [ -n "$CPF" ]; then
+        CPFS+=("$CPF")
+      fi
+    fi
+  done
+fi
 
 TOTAL=${#CPFS[@]}
 if [ $TOTAL -eq 0 ]; then
@@ -80,6 +102,7 @@ for CPF in "${CPFS[@]}"; do
   ((COUNT++))
   sleep 1
 done
+
 echo -e "\e[1;32m------------------------------\e[0m"
 echo -e "\e[1;32mConsulta finalizada!\e[0m"
 
