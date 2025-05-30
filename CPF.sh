@@ -11,52 +11,43 @@ processar_resposta() {
   local CPF="$1"
   local RESP="$2"
 
-  # Verifica JSON válido e sem erros
   echo "$RESP" | jq . >/dev/null 2>&1 || return
-  local STATUS=$(echo "$RESP" | jq -r '.status // empty')
-  local MSG=$(echo "$RESP" | jq -r '.msg // empty')
-  [[ "$STATUS" == "erro" || "$MSG" =~ "nao encontrado" || "$MSG" =~ "invalido" ]] && return
+  STATUS=$(echo "$RESP" | jq -r '.status // empty')
+  [[ "$STATUS" != "200" ]] && return
 
-  # Evita duplicatas no arquivo
-  grep -q "^CPF: $CPF\$" CPF_VALIDOS.txt 2>/dev/null && return
+  grep -q "^CPF: $CPF$" CPF_VALIDOS.txt 2>/dev/null && return
 
-  # Extrai dados do JSON (priorizando DADOS[0])
-  if echo "$RESP" | jq 'has("DADOS")' | grep -q true; then
-    local DATA_JSON=$(echo "$RESP" | jq '.DADOS[0]')
-  else
-    local DATA_JSON="$RESP"
-  fi
+  DATA_JSON=$(echo "$RESP" | jq '.dados[0]')
+  [ -z "$DATA_JSON" ] && return
 
-  # Pega cada campo (se existir) e salva em variáveis
-  NOME=$(echo "$DATA_JSON" | jq -r '.NOME // empty')
-  MAE=$(echo "$DATA_JSON" | jq -r '.NOMEMAE // empty')
-  PAI=$(echo "$DATA_JSON" | jq -r '.NOMEPAI // empty')
-  NASC=$(echo "$DATA_JSON" | jq -r '.NASC // empty')
-  RG=$(echo "$DATA_JSON" | jq -r '.RG // empty')
-  ORGAOEMISSOR=$(echo "$DATA_JSON" | jq -r '.ORGAOEMISSOR // empty')
-  UFEMISSAO=$(echo "$DATA_JSON" | jq -r '.UFEMISSAO // empty')
-  SEXO=$(echo "$DATA_JSON" | jq -r '.SEXO // empty')
-  RENDA=$(echo "$DATA_JSON" | jq -r '.RENDA // empty')
-  TITULOELEITOR=$(echo "$DATA_JSON" | jq -r '.TITULOELEITOR // empty')
-  SO=$(echo "$DATA_JSON" | jq -r '.SO // empty')
+  local VALORES=(
+    "CPF|$(echo "$DATA_JSON" | jq -r '.CPF // empty')"
+    "NASCIMENTO|$(echo "$DATA_JSON" | jq -r '.NASC // empty')"
+    "NOME|$(echo "$DATA_JSON" | jq -r '.NOME // empty')"
+    "MÃE|$(echo "$DATA_JSON" | jq -r '.NOME_MAE // empty' | xargs)"
+    "PAI|$(echo "$DATA_JSON" | jq -r '.NOME_PAI // empty' | xargs)"
+    "RG|$(echo "$DATA_JSON" | jq -r '.RG // empty')"
+    "ORGÃO EMISSOR|$(echo "$DATA_JSON" | jq -r '.ORGAO_EMISSOR // empty')"
+    "UF EMISSÃO|$(echo "$DATA_JSON" | jq -r '.UF_EMISSAO // empty')"
+    "SEXO|$(echo "$DATA_JSON" | jq -r '.SEXO // empty')"
+    "RENDA|$(echo "$DATA_JSON" | jq -r '.RENDA // empty')"
+    "TÍTULO ELEITOR|$(echo "$DATA_JSON" | jq -r '.TITULO_ELEITOR // empty')"
+    "SISTEMA OPERACIONAL|$(echo "$DATA_JSON" | jq -r '.SO // empty')"
+  )
 
-  BLOCO="CPF: $CPF"
-  [ -n "$NOME" ] && BLOCO="$BLOCO\nNOME: $NOME"
-  [ -n "$MAE" ] && BLOCO="$BLOCO\nMÃE: $MAE"
-  [ -n "$PAI" ] && BLOCO="$BLOCO\nPAI: $PAI"
-  [ -n "$NASC" ] && BLOCO="$BLOCO\nDATA NASCIMENTO: $NASC"
-  [ -n "$RG" ] && BLOCO="$BLOCO\nRG: $RG"
-  [ -n "$ORGAOEMISSOR" ] && BLOCO="$BLOCO\nORGÃO EMISSOR: $ORGAOEMISSOR"
-  [ -n "$UFEMISSAO" ] && BLOCO="$BLOCO\nUF EMISSÃO: $UFEMISSAO"
-  [ -n "$SEXO" ] && BLOCO="$BLOCO\nSEXO: $SEXO"
-  [ -n "$RENDA" ] && BLOCO="$BLOCO\nRENDA: $RENDA"
-  [ -n "$TITULOELEITOR" ] && BLOCO="$BLOCO\nTÍTULO ELEITOR: $TITULOELEITOR"
-  [ -n "$SO" ] && BLOCO="$BLOCO\nSISTEMA OPERACIONAL: $SO"
+  BLOCO=""
+  for item in "${VALORES[@]}"; do
+    IFS='|' read -r chave valor <<< "$item"
+    [ -n "$valor" ] && BLOCO="$BLOCO$chave: $valor
+"
+  done
 
-  BLOCO="$BLOCO\n------------------------------"
-
-  echo -e "$BLOCO"
-  printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
+  [ -n "$BLOCO" ] && {
+    BLOCO="$BLOCO------------------------------"
+    echo -e "$BLOCO"
+    printf "%b
+" "$BLOCO" >> CPF_VALIDOS.txt
+  }
 }
 
 ler_cpfs_manual() {
@@ -70,35 +61,23 @@ ler_cpfs_manual() {
     CPF=$(echo "$CPF_RAW" | tr -d -c '0-9')
     if [ -z "$CPF_RAW" ]; then
       ((EMPTY_LINES++))
-      if [ $EMPTY_LINES -ge 3 ]; then
-        break
-      fi
+      [ $EMPTY_LINES -ge 3 ] && break
     else
       EMPTY_LINES=0
-      if [ -n "$CPF" ]; then
-        CPFS+=("$CPF")
-      fi
+      [ -n "$CPF" ] && CPFS+=("$CPF")
     fi
   done
 }
 
 ler_cpfs_arquivo() {
   local arquivo="$1"
-  if [ ! -f "$arquivo" ]; then
-    echo "[!] Arquivo '$arquivo' não encontrado."
-    exit 1
-  fi
-
+  [ ! -f "$arquivo" ] && echo "[!] Arquivo '$arquivo' não encontrado." && exit 1
   mapfile -t CPFS < <(grep -oE '[0-9]{11}' "$arquivo")
-  if [ "${#CPFS[@]}" -eq 0 ]; then
-    echo "[!] Nenhum CPF válido encontrado no arquivo."
-    exit 1
-  fi
+  [ "${#CPFS[@]}" -eq 0 ] && echo "[!] Nenhum CPF válido encontrado no arquivo." && exit 1
 }
 
 main() {
   show_banner
-
   echo "Escolha uma opção:"
   echo "  [1] Digitar CPF manualmente"
   echo "  [2] Ler CPFs de arquivo .txt"
@@ -106,28 +85,14 @@ main() {
   read -p "Opção: " OPCAO
 
   case "$OPCAO" in
-    1)
-      ler_cpfs_manual
-      ;;
-    2)
-      read -p "Digite o caminho do arquivo: " ARQ
-      ler_cpfs_arquivo "$ARQ"
-      ;;
-    *)
-      echo "[!] Opção inválida. Saindo."
-      exit 1
-      ;;
+    1) ler_cpfs_manual ;;
+    2) read -p "Digite o caminho do arquivo: " ARQ && ler_cpfs_arquivo "$ARQ" ;;
+    *) echo "[!] Opção inválida. Saindo." && exit 1 ;;
   esac
 
-  if [ "${#CPFS[@]}" -eq 0 ]; then
-    echo "[!] Nenhum CPF para consultar. Saindo."
-    exit 1
-  fi
+  [ "${#CPFS[@]}" -eq 0 ] && echo "[!] Nenhum CPF para consultar. Saindo." && exit 1
 
-  echo
   echo "[+] Iniciando consultas..."
-  echo
-
   for CPF in "${CPFS[@]}"; do
     [ ${#CPF} -ne 11 ] && continue
     RESP=$(curl -s "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
@@ -135,7 +100,6 @@ main() {
     sleep 1
   done
 
-  echo
   echo "[✓] Consulta finalizada! Resultados em CPF_VALIDOS.txt"
 }
 
