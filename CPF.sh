@@ -12,7 +12,7 @@ show_banner() {
   clear
   echo -e "${CYAN}"
   echo "╔═══════════════════════════════════════════════════════╗"
-  echo "║         🔍 CONSULTA CPF AUTOMÁTICA - EG WEBCODE       ║"
+  echo "║         🔍 CONSULTAR CPF AUTOMÁTICO - EG WEBCODE       ║"
   echo "╚═══════════════════════════════════════════════════════╝"
   echo -e "${RESET}"
 }
@@ -106,7 +106,7 @@ main() {
     echo -e "${YELLOW}Consultando CPF: $CPF${RESET}"
     RESP=$(curl -s "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
     processar_resposta "$CPF" "$RESP"
-    sleep 1
+    # Nenhum delay aqui para máxima velocidade
   done
 
   echo -e "${GREEN}[✓] Consulta finalizada! Resultados em CPF_VALIDOS.txt${RESET}"
