@@ -40,15 +40,15 @@ processar_resposta() {
     local CHAVE_UC=$(echo "$chave" | tr '[:lower:]' '[:upper:]')
     case "$CHAVE_UC" in
       NOME) CAMPOS["NOME"]="$valor" ;;
-      NOMEMAE) CAMPOS["MAE"]="$valor" ;;
-      NOMEPAI) CAMPOS["PAI"]="$valor" ;;
+      NOME_MAE) CAMPOS["MAE"]="$valor" ;;
+      NOME_PAI) CAMPOS["PAI"]="$valor" ;;
       NASC) CAMPOS["DATA"]="$valor" ;;
       RG) CAMPOS["RG"]="$valor" ;;
-      ORGAOEMISSOR) CAMPOS["ORGAO EMISSOR"]="$valor" ;;
-      UFEMISSAO) CAMPOS["UF EMISSAO"]="$valor" ;;
+      ORGAO_EMISSOR) CAMPOS["ORGAO EMISSOR"]="$valor" ;;
+      UFE_MISSAO) CAMPOS["UF EMISSAO"]="$valor" ;;
       SEXO) CAMPOS["SEXO"]="$valor" ;;
       RENDA) CAMPOS["RENDA"]="$valor" ;;
-      TITULOELEITOR) CAMPOS["TITULO ELEITOR"]="$valor" ;;
+      TITULO_ELEITOR) CAMPOS["TITULO ELEITOR"]="$valor" ;;
       SO) CAMPOS["SISTEMA OPERACIONAL"]="$valor" ;;
       *) 
         local CHAVE_LIMPA=$(echo "$CHAVE_UC" | tr -cd '[:alnum:] ')
