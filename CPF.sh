@@ -1,8 +1,8 @@
 #!/bin/bash
 
-echo -e "\e[1;32m[+] CONSULTA CPF AUTOMÁTICA (VALORES-NU.IT.COM)\e[0m"
+echo "[+] CONSULTA CPF AUTOMATICA (VALORES-NU.IT.COM)"
 
-echo -e "\e[1;33m[!] COLE OS CPFS (UM POR LINHA). PARA INICIAR A CONSULTA, PRESSIONE ENTER 3 VEZES SEGUIDAS:\e[0m"
+echo "[!] COLE OS CPFS (UM POR LINHA). PARA INICIAR A CONSULTA, PRESSIONE ENTER 3 VEZES SEGUIDAS:"
 CPFS=()
 EMPTY_LINES=0
 while true; do
@@ -21,46 +21,24 @@ while true; do
   fi
 done
 
-TOTAL=${#CPFS[@]}
-if [ $TOTAL -eq 0 ]; then
-  echo -e "\e[1;31m[!]\e[0m NENHUM CPF INFORMADO. ENCERRANDO."
-  exit 1
-fi
+[ "${#CPFS[@]}" -eq 0 ] && echo "[!] NENHUM CPF INFORMADO. ENCERRANDO." && exit 1
 
-# Função para normalizar o nome do campo (sem acentos, espaços e tudo maiúsculo)
-NORMALIZAR_CAMPO() {
-  echo "$1" | iconv -f utf8 -t ascii//TRANSLIT | tr -cd '[:alnum:] ' | tr '[:lower:]' '[:upper:]'
-}
-
-COUNT=1
 for CPF in "${CPFS[@]}"; do
-  if [ ${#CPF} -ne 11 ]; then
-    ((COUNT++))
-    continue
-  fi
+  [ ${#CPF} -ne 11 ] && continue
 
   RESP=$(curl -s "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
+  [ -z "$RESP" ] && continue
 
-  # VERIFICA SE É JSON VÁLIDO
-  if ! echo "$RESP" | jq . >/dev/null 2>&1; then
-    ((COUNT++))
-    continue
-  fi
+  # JSON válido?
+  echo "$RESP" | jq . >/dev/null 2>&1 || continue
 
   STATUS=$(echo "$RESP" | jq -r '.status // empty')
   MSG=$(echo "$RESP" | jq -r '.msg // empty')
-  if [[ "$STATUS" == "erro" || "$MSG" =~ "nao encontrado" || "$MSG" =~ "invalido" ]]; then
-    ((COUNT++))
-    continue
-  fi
+  [[ "$STATUS" == "erro" || "$MSG" =~ "nao encontrado" || "$MSG" =~ "invalido" ]] && continue
 
-  # EVITA DUPLICATA
-  if grep -q "CPF ENCONTRADO: $CPF" CPF_VALIDOS.txt 2>/dev/null; then
-    ((COUNT++))
-    continue
-  fi
+  grep -q "CPF ENCONTRADO: $CPF" CPF_VALIDOS.txt 2>/dev/null && continue
 
-  # Extrai campos do primeiro objeto em DADOS ou do JSON raiz
+  # Extrai campos (prioriza .DADOS[0], senão pega tudo do JSON raiz)
   if echo "$RESP" | jq 'has("DADOS")' | grep -q true; then
     FIELDS=$(echo "$RESP" | jq -r '.DADOS[0] | to_entries[] | "\(.key)|\(.value)"')
   else
@@ -69,36 +47,30 @@ for CPF in "${CPFS[@]}"; do
 
   BLOCO="CPF ENCONTRADO: $CPF"
   while IFS='|' read -r chave valor; do
-    # Ignora campos com valor vazio ou nulo
     [ -z "$valor" ] && continue
     [ "$valor" == "null" ] && continue
-    campo=$(NORMALIZAR_CAMPO "$chave")
-    # Adapta nomes conhecidos para nomes bonitos (se quiser pode editar mais)
-    case "$campo" in
+    case "$(echo "$chave" | tr '[:lower:]' '[:upper:]')" in
       CPF) continue ;;
-      NASC) campo_fmt="NASCIMENTO" ;;
-      NOME) campo_fmt="NOME" ;;
-      NOMEMAE) campo_fmt="NOME MAE" ;;
-      NOMEPAI) campo_fmt="NOME PAI" ;;
-      ORGAOEMISSOR) campo_fmt="ORGAO EMISSOR" ;;
-      RENDA) campo_fmt="RENDA" ;;
-      RG) campo_fmt="RG" ;;
-      SEXO) campo_fmt="SEXO" ;;
-      SO) campo_fmt="SO" ;;
-      TITULOELEITOR) campo_fmt="TITULO ELEITOR" ;;
-      UFEMISSAO) campo_fmt="UF EMISSAO" ;;
-      *) campo_fmt="$campo" ;;
+      NASC) campo="NASCIMENTO" ;;
+      NOME) campo="NOME" ;;
+      NOMEMAE) campo="NOME MAE" ;;
+      NOMEPAI) campo="NOME PAI" ;;
+      ORGAOEMISSOR) campo="ORGAO EMISSOR" ;;
+      RENDA) campo="RENDA" ;;
+      RG) campo="RG" ;;
+      SEXO) campo="SEXO" ;;
+      SO) campo="SO" ;;
+      TITULOELEITOR) campo="TITULO ELEITOR" ;;
+      UFEMISSAO) campo="UF EMISSAO" ;;
+      *) campo=$(echo "$chave" | iconv -f utf8 -t ascii//TRANSLIT | tr -cd '[:alnum:] ' | tr '[:lower:]' '[:upper:]') ;;
     esac
-    BLOCO="$BLOCO\n$campo_fmt: $valor"
+    BLOCO="$BLOCO\n$campo: $valor"
   done <<< "$FIELDS"
   BLOCO="$BLOCO\n------------------------------"
 
-  # Exibe e salva
   echo -e "$BLOCO"
   printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
-
-  ((COUNT++))
   sleep 1
 done
 
-echo -e "\e[1;32mCONSULTA FINALIZADA! RESULTADOS EM CPF_VALIDOS.TXT\e[0m"
+echo "CONSULTA FINALIZADA! RESULTADOS EM CPF_VALIDOS.TXT"
