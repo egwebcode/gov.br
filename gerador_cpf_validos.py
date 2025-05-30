@@ -15,22 +15,19 @@ def gerar_cpf_valido(nove_digitos):
     d2 = calcular_digito(nove_digitos + d1, 11)
     return nove_digitos + d1 + d2
 
-def formatar_cpf(cpf):
-    return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
-
 def gerar_cpfs_validos():
     if os.path.exists(ARQUIVO):
         print(f"[✔] Arquivo '{ARQUIVO}' já existe. Pulando geração.")
         return
 
-    print("[...] Gerando CPFs válidos...")
+    print("[...] Gerando CPFs válidos (apenas números)...")
     with open(ARQUIVO, "w") as f:
         for i in range(1000000000):  # 9 primeiros dígitos
             base = str(i).zfill(9)
             cpf_completo = gerar_cpf_valido(base)
-            f.write(formatar_cpf(cpf_completo) + "\n")
+            f.write(cpf_completo + "\n")
 
-            if i % 1000000 == 0:
+            if i % 50000 == 0:
                 print(f" > {i:,} CPFs válidos gerados...")
 
     print(f"[✔] Arquivo '{ARQUIVO}' gerado com sucesso!")
