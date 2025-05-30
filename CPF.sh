@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Cores
+# Cores para saída
 RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
 CYAN=$(tput setaf 6)
@@ -49,6 +49,6 @@ for CPF in "${CPFS[@]}"; do
 
   grep -q "CPF: $CPF" CPF_VALIDOS.txt 2>/dev/null && continue
 
-  # Extrair campos
+  # Extrair dados
   if echo "$RESP" | jq 'has("DADOS")' | grep -q true; then
     FIELDS=$(echo "$RESP" | jq -r '.DADOS[0] | to_entries[] | "
