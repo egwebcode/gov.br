@@ -1,10 +1,20 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+# Cores ANSI
+RED="\033[1;31m"
+GREEN="\033[1;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[1;34m"
+CYAN="\033[1;36m"
+RESET="\033[0m"
+
 show_banner() {
-  echo "=============================================="
-  echo "    CONSULTA CPF AUTOMÁTICA - EG WEBCODE"
-  echo "=============================================="
-  echo
+  clear
+  echo -e "${CYAN}"
+  echo "╔═══════════════════════════════════════════════════════╗"
+  echo "║         🔍 CONSULTA CPF AUTOMÁTICA - EG WEBCODE       ║"
+  echo "╚═══════════════════════════════════════════════════════╝"
+  echo -e "${RESET}"
 }
 
 processar_resposta() {
@@ -38,21 +48,19 @@ processar_resposta() {
   BLOCO=""
   for item in "${VALORES[@]}"; do
     IFS='|' read -r chave valor <<< "$item"
-    [ -n "$valor" ] && BLOCO="$BLOCO$chave: $valor
-"
+    [ -n "$valor" ] && BLOCO="$BLOCO$chave: $valor\n"
   done
 
   [ -n "$BLOCO" ] && {
     BLOCO="$BLOCO------------------------------"
-    echo -e "$BLOCO"
-    printf "%b
-" "$BLOCO" >> CPF_VALIDOS.txt
+    echo -e "${GREEN}$BLOCO${RESET}"
+    printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
   }
 }
 
 ler_cpfs_manual() {
-  echo "[!] Digite os CPFs, um por linha."
-  echo "[!] Para iniciar a consulta, pressione ENTER 3 vezes seguidas."
+  echo -e "${YELLOW}[!] Digite os CPFs, um por linha."
+  echo "[!] Para iniciar a consulta, pressione ENTER 3 vezes seguidas.${RESET}"
   echo
   CPFS=()
   EMPTY_LINES=0
@@ -71,28 +79,28 @@ ler_cpfs_manual() {
 
 ler_cpfs_arquivo() {
   local arquivo="$1"
-  [ ! -f "$arquivo" ] && echo "[!] Arquivo '$arquivo' não encontrado." && exit 1
+  [ ! -f "$arquivo" ] && echo -e "${RED}[!] Arquivo '$arquivo' não encontrado.${RESET}" && exit 1
   mapfile -t CPFS < <(grep -oE '[0-9]{11}' "$arquivo")
-  [ "${#CPFS[@]}" -eq 0 ] && echo "[!] Nenhum CPF válido encontrado no arquivo." && exit 1
+  [ "${#CPFS[@]}" -eq 0 ] && echo -e "${RED}[!] Nenhum CPF válido encontrado no arquivo.${RESET}" && exit 1
 }
 
 main() {
   show_banner
-  echo "Escolha uma opção:"
-  echo "  [1] Digitar CPF manualmente"
-  echo "  [2] Ler CPFs de arquivo .txt"
+  echo -e "${BLUE}Escolha uma opção:${RESET}"
+  echo -e "  ${CYAN}[1]${RESET} Digitar CPF manualmente"
+  echo -e "  ${CYAN}[2]${RESET} Ler CPFs de arquivo .txt"
   echo
   read -p "Opção: " OPCAO
 
   case "$OPCAO" in
     1) ler_cpfs_manual ;;
     2) read -p "Digite o caminho do arquivo: " ARQ && ler_cpfs_arquivo "$ARQ" ;;
-    *) echo "[!] Opção inválida. Saindo." && exit 1 ;;
+    *) echo -e "${RED}[!] Opção inválida. Saindo.${RESET}" && exit 1 ;;
   esac
 
-  [ "${#CPFS[@]}" -eq 0 ] && echo "[!] Nenhum CPF para consultar. Saindo." && exit 1
+  [ "${#CPFS[@]}" -eq 0 ] && echo -e "${RED}[!] Nenhum CPF para consultar. Saindo.${RESET}" && exit 1
 
-  echo "[+] Iniciando consultas..."
+  echo -e "${GREEN}[+] Iniciando consultas...${RESET}"
   for CPF in "${CPFS[@]}"; do
     [ ${#CPF} -ne 11 ] && continue
     RESP=$(curl -s "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
@@ -100,7 +108,7 @@ main() {
     sleep 1
   done
 
-  echo "[✓] Consulta finalizada! Resultados em CPF_VALIDOS.txt"
+  echo -e "${GREEN}[✓] Consulta finalizada! Resultados em CPF_VALIDOS.txt${RESET}"
 }
 
 main
