@@ -88,13 +88,13 @@ main() {
   show_banner
   echo -e "${BLUE}Escolha uma opção:${RESET}"
   echo -e "  ${CYAN}[1]${RESET} Digitar CPF manualmente"
-  echo -e "  ${CYAN}[2]${RESET} Ler CPFs de arquivo .txt"
+  echo -e "  ${CYAN}[2]${RESET} Ler CPFs de arquivo .txt (no mesmo diretório)"
   echo
   read -p "Opção: " OPCAO
 
   case "$OPCAO" in
     1) ler_cpfs_manual ;;
-    2) read -p "Digite o caminho do arquivo: " ARQ && ler_cpfs_arquivo "$ARQ" ;;
+    2) read -p "Digite o nome do arquivo (ex: lista.txt): " ARQ && ler_cpfs_arquivo "$ARQ" ;;
     *) echo -e "${RED}[!] Opção inválida. Saindo.${RESET}" && exit 1 ;;
   esac
 
@@ -103,6 +103,7 @@ main() {
   echo -e "${GREEN}[+] Iniciando consultas...${RESET}"
   for CPF in "${CPFS[@]}"; do
     [ ${#CPF} -ne 11 ] && continue
+    echo -e "${YELLOW}Consultando CPF: $CPF${RESET}"
     RESP=$(curl -s "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
     processar_resposta "$CPF" "$RESP"
     sleep 1
