@@ -1,8 +1,8 @@
 #!/bin/bash
 
-echo -e "\e[1;32m[+] Consulta CPF automática (valores-nu.it.com)\e[0m"
+echo -e "\e[1;32m[+] CONSULTA CPF AUTOMÁTICA (VALORES-NU.IT.COM)\e[0m"
 
-echo -e "\e[1;33m[!] Cole os CPFs (um por linha). Para iniciar a consulta, pressione ENTER 3 vezes seguidas:\e[0m"
+echo -e "\e[1;33m[!] COLE OS CPFS (UM POR LINHA). PARA INICIAR A CONSULTA, PRESSIONE ENTER 3 VEZES SEGUIDAS:\e[0m"
 CPFS=()
 EMPTY_LINES=0
 while true; do
@@ -23,61 +23,82 @@ done
 
 TOTAL=${#CPFS[@]}
 if [ $TOTAL -eq 0 ]; then
-  echo -e "\e[1;31m[!]\e[0m Nenhum CPF informado. Encerrando."
+  echo -e "\e[1;31m[!]\e[0m NENHUM CPF INFORMADO. ENCERRANDO."
   exit 1
 fi
+
+# Função para normalizar o nome do campo (sem acentos, espaços e tudo maiúsculo)
+NORMALIZAR_CAMPO() {
+  echo "$1" | iconv -f utf8 -t ascii//TRANSLIT | tr -cd '[:alnum:] ' | tr '[:lower:]' '[:upper:]'
+}
 
 COUNT=1
 for CPF in "${CPFS[@]}"; do
   if [ ${#CPF} -ne 11 ]; then
-    echo -e "\e[1;31m[!]\e[0m [$COUNT/$TOTAL] CPF inválido: $CPF"
     ((COUNT++))
     continue
   fi
 
-  echo -e "\e[1;32m------------------------------\e[0m"
-  echo -e "\e[1;36m($COUNT)\e[0m Consultando: \e[1;37m$CPF\e[0m"
   RESP=$(curl -s "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
 
-  # Extrai todos os pares chave:valor do JSON (se for JSON)
-  # Se não for JSON válido, pula para o próximo
+  # VERIFICA SE É JSON VÁLIDO
   if ! echo "$RESP" | jq . >/dev/null 2>&1; then
-    echo -e "\e[1;31m[!] Resposta inválida para $CPF. Pulando...\e[0m"
     ((COUNT++))
     continue
   fi
 
-  # Pega o status ou campo que indique erro/não encontrado
   STATUS=$(echo "$RESP" | jq -r '.status // empty')
   MSG=$(echo "$RESP" | jq -r '.msg // empty')
-  if [[ "$STATUS" == "erro" || "$MSG" =~ "não encontrado" || "$MSG" =~ "invalido" ]]; then
-    echo -e "\e[1;31m[!] CPF $CPF não encontrado ou inválido. Pulando...\e[0m"
+  if [[ "$STATUS" == "erro" || "$MSG" =~ "nao encontrado" || "$MSG" =~ "invalido" ]]; then
     ((COUNT++))
     continue
   fi
 
-  # Monta bloco organizado com todas as chaves e valores
-  BLOCO="CPF: $CPF"
-  for chave in $(echo "$RESP" | jq -r 'keys_unsorted[]'); do
-    valor=$(echo "$RESP" | jq -r --arg k "$chave" '.[$k]')
-    case "$chave" in
-      cpf|status|msg) continue ;; # já tratado ou irrelevante
-      *) BLOCO="$BLOCO\n$(echo "$chave" | tr '[:lower:]' '[:upper:]'): $valor" ;;
+  # EVITA DUPLICATA
+  if grep -q "CPF ENCONTRADO: $CPF" CPF_VALIDOS.txt 2>/dev/null; then
+    ((COUNT++))
+    continue
+  fi
+
+  # Extrai campos do primeiro objeto em DADOS ou do JSON raiz
+  if echo "$RESP" | jq 'has("DADOS")' | grep -q true; then
+    FIELDS=$(echo "$RESP" | jq -r '.DADOS[0] | to_entries[] | "\(.key)|\(.value)"')
+  else
+    FIELDS=$(echo "$RESP" | jq -r 'to_entries[] | "\(.key)|\(.value)"')
+  fi
+
+  BLOCO="CPF ENCONTRADO: $CPF"
+  while IFS='|' read -r chave valor; do
+    # Ignora campos com valor vazio ou nulo
+    [ -z "$valor" ] && continue
+    [ "$valor" == "null" ] && continue
+    campo=$(NORMALIZAR_CAMPO "$chave")
+    # Adapta nomes conhecidos para nomes bonitos (se quiser pode editar mais)
+    case "$campo" in
+      CPF) continue ;;
+      NASC) campo_fmt="NASCIMENTO" ;;
+      NOME) campo_fmt="NOME" ;;
+      NOMEMAE) campo_fmt="NOME MAE" ;;
+      NOMEPAI) campo_fmt="NOME PAI" ;;
+      ORGAOEMISSOR) campo_fmt="ORGAO EMISSOR" ;;
+      RENDA) campo_fmt="RENDA" ;;
+      RG) campo_fmt="RG" ;;
+      SEXO) campo_fmt="SEXO" ;;
+      SO) campo_fmt="SO" ;;
+      TITULOELEITOR) campo_fmt="TITULO ELEITOR" ;;
+      UFEMISSAO) campo_fmt="UF EMISSAO" ;;
+      *) campo_fmt="$campo" ;;
     esac
-  done
+    BLOCO="$BLOCO\n$campo_fmt: $valor"
+  done <<< "$FIELDS"
   BLOCO="$BLOCO\n------------------------------"
 
-  # Só salva se ainda não existir esse CPF no arquivo
-  if ! grep -qF "CPF: $CPF" CPF_VALIDOS.txt 2>/dev/null; then
-    printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
-    echo -e "\e[1;32m[✓] Dados salvos para $CPF\e[0m"
-  else
-    echo -e "\e[1;33m[!] CPF $CPF já está salvo. Ignorando...\e[0m"
-  fi
+  # Exibe e salva
+  echo -e "$BLOCO"
+  printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
 
   ((COUNT++))
   sleep 1
 done
 
-echo -e "\e[1;32m------------------------------\e[0m"
-echo -e "\e[1;32mConsulta finalizada! Resultados em CPF_VALIDOS.txt\e[0m"
+echo -e "\e[1;32mCONSULTA FINALIZADA! RESULTADOS EM CPF_VALIDOS.TXT\e[0m"
