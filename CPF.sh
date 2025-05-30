@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # Autor: EG WEBCODE
-# Descrição: Consulta automática de CPFs
+# Descrição: Consulta automática de CPFs na API valores-nu.it.com
 
 show_banner() {
   echo "=============================================="
@@ -25,8 +25,10 @@ processar_resposta() {
 
   # Extrai dados do JSON
   if echo "$RESP" | jq 'has("DADOS")' | grep -q true; then
+    # Pega o primeiro objeto do array DADOS
     FIELDS=$(echo "$RESP" | jq -r '.DADOS[0] | to_entries[] | "\(.key)|\(.value)"')
   else
+    # Se não tiver DADOS, pega tudo do JSON raiz
     FIELDS=$(echo "$RESP" | jq -r 'to_entries[] | "\(.key)|\(.value)"')
   fi
 
@@ -34,21 +36,24 @@ processar_resposta() {
   declare -A CAMPOS=()
 
   while IFS='|' read -r chave valor; do
-    [ -z "$valor" ] && continue
-    [ "$valor" == "null" ] && continue
+    # Ignorar valores vazios ou null
+    if [[ -z "$valor" || "$valor" == "null" ]]; then
+      continue
+    fi
 
+    # Padronizar chave para maiúscula e remover caracteres estranhos
     local CHAVE_UC=$(echo "$chave" | tr '[:lower:]' '[:upper:]')
     case "$CHAVE_UC" in
       NOME) CAMPOS["NOME"]="$valor" ;;
-      NOME_MAE) CAMPOS["MAE"]="$valor" ;;
-      NOME_PAI) CAMPOS["PAI"]="$valor" ;;
+      NOMEMAE) CAMPOS["MAE"]="$valor" ;;
+      NOMEPAI) CAMPOS["PAI"]="$valor" ;;
       NASC) CAMPOS["DATA"]="$valor" ;;
       RG) CAMPOS["RG"]="$valor" ;;
-      ORGAO_EMISSOR) CAMPOS["ORGAO EMISSOR"]="$valor" ;;
-      UFE_MISSAO) CAMPOS["UF EMISSAO"]="$valor" ;;
+      ORGAOEMISSOR) CAMPOS["ORGAO EMISSOR"]="$valor" ;;
+      UFEMISSAO) CAMPOS["UF EMISSAO"]="$valor" ;;
       SEXO) CAMPOS["SEXO"]="$valor" ;;
       RENDA) CAMPOS["RENDA"]="$valor" ;;
-      TITULO_ELEITOR) CAMPOS["TITULO ELEITOR"]="$valor" ;;
+      TITULOELEITOR) CAMPOS["TITULO ELEITOR"]="$valor" ;;
       SO) CAMPOS["SISTEMA OPERACIONAL"]="$valor" ;;
       *) 
         local CHAVE_LIMPA=$(echo "$CHAVE_UC" | tr -cd '[:alnum:] ')
@@ -57,16 +62,19 @@ processar_resposta() {
     esac
   done <<< "$FIELDS"
 
-  # Ordem definida para exibir
-  for key in "NOME" "MAE" "PAI" "DATA" "RG" "ORGAO EMISSOR" "UF EMISSAO" "SEXO" "RENDA" "TITULO ELEITOR" "SISTEMA OPERACIONAL"; do
-    [ -n "${CAMPOS[$key]}" ] && BLOCO="$BLOCO\n$key: ${CAMPOS[$key]}"
+  # Definir a ordem para salvar e imprimir
+  local ordem_chaves=("NOME" "MAE" "PAI" "DATA" "RG" "ORGAO EMISSOR" "UF EMISSAO" "SEXO" "RENDA" "TITULO ELEITOR" "SISTEMA OPERACIONAL")
+
+  for key in "${ordem_chaves[@]}"; do
+    if [ -n "${CAMPOS[$key]}" ]; then
+      BLOCO="$BLOCO\n$key: ${CAMPOS[$key]}"
+    fi
   done
 
   BLOCO="$BLOCO\n------------------------------"
 
-  # Imprime no terminal
+  # Salva no arquivo e imprime no terminal
   echo -e "$BLOCO"
-  # Grava no arquivo (append)
   printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
 }
 
