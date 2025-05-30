@@ -1,20 +1,13 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/bash
 
-# Cores para saída
-RED=$(tput setaf 1)
-GREEN=$(tput setaf 2)
-CYAN=$(tput setaf 6)
-RESET=$(tput sgr0)
-BOLD=$(tput bold)
-
-# Banner
-echo -e "${BOLD}${CYAN}"
-echo "╔════════════════════════════════════════════════════╗"
-echo "║        [+] CONSULTA CPF AUTOMÁTICA (EG WEBCODE)   ║"
-echo "╚════════════════════════════════════════════════════╝"
-echo -e "${RESET}"
-
-echo "${GREEN}[!] Cole os CPFs (um por linha). Para iniciar a consulta, pressione ENTER 3 vezes seguidas:${RESET}"
+echo
+echo "=============================================="
+echo "  [+] CONSULTA CPF AUTOMÁTICA - EG WEBCODE"
+echo "=============================================="
+echo
+echo "[!] Cole os CPFs (um por linha)."
+echo "[!] Para iniciar a consulta, pressione ENTER 3 vezes seguidas:"
+echo
 
 CPFS=()
 EMPTY_LINES=0
@@ -34,13 +27,14 @@ while true; do
   fi
 done
 
-[ "${#CPFS[@]}" -eq 0 ] && echo "${RED}[!] Nenhum CPF informado. Encerrando.${RESET}" && exit 1
+[ "${#CPFS[@]}" -eq 0 ] && echo "[!] Nenhum CPF informado. Encerrando." && exit 1
 
 for CPF in "${CPFS[@]}"; do
   [ ${#CPF} -ne 11 ] && continue
 
   RESP=$(curl -s "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
   [ -z "$RESP" ] && continue
+
   echo "$RESP" | jq . >/dev/null 2>&1 || continue
 
   STATUS=$(echo "$RESP" | jq -r '.status // empty')
@@ -49,6 +43,5 @@ for CPF in "${CPFS[@]}"; do
 
   grep -q "CPF: $CPF" CPF_VALIDOS.txt 2>/dev/null && continue
 
-  # Extrair dados
   if echo "$RESP" | jq 'has("DADOS")' | grep -q true; then
     FIELDS=$(echo "$RESP" | jq -r '.DADOS[0] | to_entries[] | "
