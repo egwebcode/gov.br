@@ -1,8 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Autor: EG WEBCODE
-# Descrição: Consulta automática de CPFs na API valores-nu.it.com
-
 show_banner() {
   echo "=============================================="
   echo "    CONSULTA CPF AUTOMÁTICA - EG WEBCODE"
@@ -21,59 +18,43 @@ processar_resposta() {
   [[ "$STATUS" == "erro" || "$MSG" =~ "nao encontrado" || "$MSG" =~ "invalido" ]] && return
 
   # Evita duplicatas no arquivo
-  grep -q "CPF: $CPF" CPF_VALIDOS.txt 2>/dev/null && return
+  grep -q "^CPF: $CPF\$" CPF_VALIDOS.txt 2>/dev/null && return
 
-  # Extrai dados do JSON
+  # Extrai dados do JSON (priorizando DADOS[0])
   if echo "$RESP" | jq 'has("DADOS")' | grep -q true; then
-    # Pega o primeiro objeto do array DADOS
-    FIELDS=$(echo "$RESP" | jq -r '.DADOS[0] | to_entries[] | "\(.key)|\(.value)"')
+    local DATA_JSON=$(echo "$RESP" | jq '.DADOS[0]')
   else
-    # Se não tiver DADOS, pega tudo do JSON raiz
-    FIELDS=$(echo "$RESP" | jq -r 'to_entries[] | "\(.key)|\(.value)"')
+    local DATA_JSON="$RESP"
   fi
 
-  local BLOCO="CPF: $CPF"
-  declare -A CAMPOS=()
+  # Pega cada campo (se existir) e salva em variáveis
+  NOME=$(echo "$DATA_JSON" | jq -r '.NOME // empty')
+  MAE=$(echo "$DATA_JSON" | jq -r '.NOMEMAE // empty')
+  PAI=$(echo "$DATA_JSON" | jq -r '.NOMEPAI // empty')
+  NASC=$(echo "$DATA_JSON" | jq -r '.NASC // empty')
+  RG=$(echo "$DATA_JSON" | jq -r '.RG // empty')
+  ORGAOEMISSOR=$(echo "$DATA_JSON" | jq -r '.ORGAOEMISSOR // empty')
+  UFEMISSAO=$(echo "$DATA_JSON" | jq -r '.UFEMISSAO // empty')
+  SEXO=$(echo "$DATA_JSON" | jq -r '.SEXO // empty')
+  RENDA=$(echo "$DATA_JSON" | jq -r '.RENDA // empty')
+  TITULOELEITOR=$(echo "$DATA_JSON" | jq -r '.TITULOELEITOR // empty')
+  SO=$(echo "$DATA_JSON" | jq -r '.SO // empty')
 
-  while IFS='|' read -r chave valor; do
-    # Ignorar valores vazios ou null
-    if [[ -z "$valor" || "$valor" == "null" ]]; then
-      continue
-    fi
-
-    # Padronizar chave para maiúscula e remover caracteres estranhos
-    local CHAVE_UC=$(echo "$chave" | tr '[:lower:]' '[:upper:]')
-    case "$CHAVE_UC" in
-      NOME) CAMPOS["NOME"]="$valor" ;;
-      NOMEMAE) CAMPOS["MAE"]="$valor" ;;
-      NOMEPAI) CAMPOS["PAI"]="$valor" ;;
-      NASC) CAMPOS["DATA"]="$valor" ;;
-      RG) CAMPOS["RG"]="$valor" ;;
-      ORGAOEMISSOR) CAMPOS["ORGAO EMISSOR"]="$valor" ;;
-      UFEMISSAO) CAMPOS["UF EMISSAO"]="$valor" ;;
-      SEXO) CAMPOS["SEXO"]="$valor" ;;
-      RENDA) CAMPOS["RENDA"]="$valor" ;;
-      TITULOELEITOR) CAMPOS["TITULO ELEITOR"]="$valor" ;;
-      SO) CAMPOS["SISTEMA OPERACIONAL"]="$valor" ;;
-      *) 
-        local CHAVE_LIMPA=$(echo "$CHAVE_UC" | tr -cd '[:alnum:] ')
-        CAMPOS["$CHAVE_LIMPA"]="$valor"
-        ;;
-    esac
-  done <<< "$FIELDS"
-
-  # Definir a ordem para salvar e imprimir
-  local ordem_chaves=("NOME" "MAE" "PAI" "DATA" "RG" "ORGAO EMISSOR" "UF EMISSAO" "SEXO" "RENDA" "TITULO ELEITOR" "SISTEMA OPERACIONAL")
-
-  for key in "${ordem_chaves[@]}"; do
-    if [ -n "${CAMPOS[$key]}" ]; then
-      BLOCO="$BLOCO\n$key: ${CAMPOS[$key]}"
-    fi
-  done
+  BLOCO="CPF: $CPF"
+  [ -n "$NOME" ] && BLOCO="$BLOCO\nNOME: $NOME"
+  [ -n "$MAE" ] && BLOCO="$BLOCO\nMÃE: $MAE"
+  [ -n "$PAI" ] && BLOCO="$BLOCO\nPAI: $PAI"
+  [ -n "$NASC" ] && BLOCO="$BLOCO\nDATA NASCIMENTO: $NASC"
+  [ -n "$RG" ] && BLOCO="$BLOCO\nRG: $RG"
+  [ -n "$ORGAOEMISSOR" ] && BLOCO="$BLOCO\nORGÃO EMISSOR: $ORGAOEMISSOR"
+  [ -n "$UFEMISSAO" ] && BLOCO="$BLOCO\nUF EMISSÃO: $UFEMISSAO"
+  [ -n "$SEXO" ] && BLOCO="$BLOCO\nSEXO: $SEXO"
+  [ -n "$RENDA" ] && BLOCO="$BLOCO\nRENDA: $RENDA"
+  [ -n "$TITULOELEITOR" ] && BLOCO="$BLOCO\nTÍTULO ELEITOR: $TITULOELEITOR"
+  [ -n "$SO" ] && BLOCO="$BLOCO\nSISTEMA OPERACIONAL: $SO"
 
   BLOCO="$BLOCO\n------------------------------"
 
-  # Salva no arquivo e imprime no terminal
   echo -e "$BLOCO"
   printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
 }
@@ -108,7 +89,6 @@ ler_cpfs_arquivo() {
     exit 1
   fi
 
-  # Extrai apenas CPFs com 11 dígitos
   mapfile -t CPFS < <(grep -oE '[0-9]{11}' "$arquivo")
   if [ "${#CPFS[@]}" -eq 0 ]; then
     echo "[!] Nenhum CPF válido encontrado no arquivo."
