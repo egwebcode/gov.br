@@ -3,6 +3,7 @@ import os
 
 ARQUIVO = "wordlist_cpf.txt"
 TOTAL = 1_000_000_000
+INTERVALO_LOG = 100_000  # Atualiza o progresso a cada 100 mil gerados
 BUFFER_SIZE = 1_000_000
 
 def calcular_digito(cpf, peso_inicial):
@@ -15,12 +16,12 @@ def gerar_cpfs_validos():
         print(f"[✔] Arquivo '{ARQUIVO}' já existe. Pulando geração.")
         return
 
-    print("[🚀] Iniciando geração otimizada de CPFs válidos...")
+    print("🚀 Iniciando geração de CPFs válidos...\n")
     inicio = time.time()
-    ultimo_report = inicio
+    ultimo_log = 0
     escritos = 0
 
-    with open(ARQUIVO, "w", buffering=1024*1024*8) as f:  # 8MB de buffer
+    with open(ARQUIVO, "w", buffering=1024*1024*8) as f:
         while escritos < TOTAL:
             buffer_inicio = escritos
             buffer_fim = min(escritos + BUFFER_SIZE, TOTAL)
@@ -32,16 +33,20 @@ def gerar_cpfs_validos():
             f.write(''.join(blocos))
             escritos = buffer_fim
 
-            agora = time.time()
-            if agora - ultimo_report >= 5:
+            # Histórico organizado a cada 100 mil gerados
+            if escritos - ultimo_log >= INTERVALO_LOG:
+                tempo_passado = time.time() - inicio
                 porcentagem = (escritos / TOTAL) * 100
-                velocidade = escritos / (agora - inicio)
-                print(f"[📈] {porcentagem:.2f}% gerado | {escritos:,} CPFs | {velocidade:,.0f} CPFs/s")
-                ultimo_report = agora
+                velocidade = escritos / tempo_passado
+                print(
+                    f"📊 Progresso: {porcentagem:6.2f}%  |  Gerados: {escritos:,}  |  Velocidade: {velocidade:,.0f} CPFs/s"
+                )
+                ultimo_log = escritos
 
     duracao = time.time() - inicio
-    print(f"\n[✅] Finalizado em {duracao:.2f} segundos ({duracao/60:.2f} minutos)")
-    print(f"[📁] Arquivo salvo: {ARQUIVO}")
+    print("\n✅ Finalizado!")
+    print(f"🕒 Tempo total: {duracao:.2f} segundos ({duracao/60:.2f} minutos)")
+    print(f"📁 Arquivo salvo como: {ARQUIVO}")
 
 if __name__ == "__main__":
     gerar_cpfs_validos()
