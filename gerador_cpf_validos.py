@@ -6,50 +6,42 @@ TOTAL = 1_000_000_000
 BUFFER_SIZE = 1_000_000
 
 def calcular_digito(cpf, peso_inicial):
-    soma = sum(int(digito) * peso for digito, peso in zip(cpf, range(peso_inicial, 1, -1)))
+    soma = sum(int(cpf[i]) * (peso_inicial - i) for i in range(len(cpf)))
     resto = soma % 11
     return '0' if resto < 2 else str(11 - resto)
-
-def gerar_cpf_valido(nove_digitos):
-    d1 = calcular_digito(nove_digitos, 10)
-    d2 = calcular_digito(nove_digitos + d1, 11)
-    return nove_digitos + d1 + d2
 
 def gerar_cpfs_validos():
     if os.path.exists(ARQUIVO):
         print(f"[✔] Arquivo '{ARQUIVO}' já existe. Pulando geração.")
         return
 
-    print("[🚀] Gerando todos os CPFs válidos (modo rápido em 1 núcleo)...")
+    print("[🚀] Iniciando geração otimizada de CPFs válidos...")
     inicio = time.time()
-    buffer = []
+    ultimo_report = inicio
     escritos = 0
-    ultimo_report = time.time()
 
-    with open(ARQUIVO, "w") as f:
-        for i in range(TOTAL):
-            base = str(i).zfill(9)
-            cpf = gerar_cpf_valido(base)
-            buffer.append(cpf + "\n")
-            escritos += 1
+    with open(ARQUIVO, "w", buffering=1024*1024*8) as f:  # 8MB de buffer
+        while escritos < TOTAL:
+            buffer_inicio = escritos
+            buffer_fim = min(escritos + BUFFER_SIZE, TOTAL)
 
-            if len(buffer) >= BUFFER_SIZE:
-                f.writelines(buffer)
-                buffer.clear()
+            blocos = (
+                f"{i:09d}{calcular_digito(f'{i:09d}', 10)}{calcular_digito(f'{i:09d}{calcular_digito(f'{i:09d}', 10)}', 11)}\n"
+                for i in range(buffer_inicio, buffer_fim)
+            )
+            f.write(''.join(blocos))
+            escritos = buffer_fim
 
-            # Atualiza progresso a cada 5 segundos
-            if time.time() - ultimo_report >= 5:
+            agora = time.time()
+            if agora - ultimo_report >= 5:
                 porcentagem = (escritos / TOTAL) * 100
-                velocidade = escritos / (time.time() - inicio)
-                print(f"[⏳] {porcentagem:.2f}% gerado | {escritos:,} CPFs | {velocidade:,.0f} CPFs/s")
-                ultimo_report = time.time()
-
-        if buffer:
-            f.writelines(buffer)
+                velocidade = escritos / (agora - inicio)
+                print(f"[📈] {porcentagem:.2f}% gerado | {escritos:,} CPFs | {velocidade:,.0f} CPFs/s")
+                ultimo_report = agora
 
     duracao = time.time() - inicio
     print(f"\n[✅] Finalizado em {duracao:.2f} segundos ({duracao/60:.2f} minutos)")
-    print(f"[📁] Arquivo salvo como: {ARQUIVO}")
+    print(f"[📁] Arquivo salvo: {ARQUIVO}")
 
 if __name__ == "__main__":
     gerar_cpfs_validos()
