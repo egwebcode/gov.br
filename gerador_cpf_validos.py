@@ -4,6 +4,7 @@ import threading
 import os
 
 ARQUIVO = "wordlist_cpf.txt"
+BUFFER_SIZE = 100_000  # Ajuste conforme a RAM disponível
 
 def calcular_digito(cpf, peso_inicial):
     soma = sum(int(digito) * peso for digito, peso in zip(cpf, range(peso_inicial, 1, -1)))
@@ -20,15 +21,25 @@ def gerar_cpfs_validos():
         print(f"[✔] Arquivo '{ARQUIVO}' já existe. Pulando geração.")
         return
 
-    print("[...] Gerando CPFs válidos (apenas números)...")
-    with open(ARQUIVO, "w") as f:
-        for i in range(1000000000):  # 9 primeiros dígitos
-            base = str(i).zfill(9)
-            cpf_completo = gerar_cpf_valido(base)
-            f.write(cpf_completo + "\n")
+    print("[...] Gerando CPFs válidos (modo otimizado)...")
+    buffer = []
 
-            if i % 500000 == 0:
+    with open(ARQUIVO, "w") as f:
+        for i in range(1_000_000_000):  # 9 primeiros dígitos
+            base = f"{i:09d}"
+            cpf_completo = gerar_cpf_valido(base)
+            buffer.append(cpf_completo + "\n")
+
+            if len(buffer) >= BUFFER_SIZE:
+                f.writelines(buffer)
+                buffer.clear()
+
+            if i % 500_000 == 0:
                 print(f" > {i:,} CPFs válidos gerados...")
+
+        # Escreve o restante
+        if buffer:
+            f.writelines(buffer)
 
     print(f"[✔] Arquivo '{ARQUIVO}' gerado com sucesso!")
 
