@@ -21,14 +21,20 @@ def gerar_cpfs_validos():
         return
 
     print("[...] Gerando CPFs válidos (apenas números)...")
+    buffer = []
     with open(ARQUIVO, "w") as f:
         for i in range(1000000000):  # 9 primeiros dígitos
-            base = str(i).zfill(9)
+            base = f"{i:09d}"
             cpf_completo = gerar_cpf_valido(base)
-            f.write(cpf_completo + "\n")
+            buffer.append(cpf_completo + "\n")
 
-            if i % 50000 == 0:
+            if i % 100000 == 0 and i > 0:
+                f.writelines(buffer)
+                buffer.clear()
                 print(f" > {i:,} CPFs válidos gerados...")
+
+        if buffer:
+            f.writelines(buffer)
 
     print(f"[✔] Arquivo '{ARQUIVO}' gerado com sucesso!")
 
