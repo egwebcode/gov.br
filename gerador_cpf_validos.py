@@ -1,10 +1,9 @@
-import http.server
-import socketserver
-import threading
+import multiprocessing
 import os
 
-ARQUIVO = "wordlist_cpf.txt"
-BUFFER_SIZE = 100_000  # Ajuste conforme a RAM disponível
+ARQUIVO_FINAL = "wordlist_cpf.txt"
+CPFS_TOTAL = 1_000_000_000
+N_PROCESSOS = multiprocessing.cpu_count()  # Usa todos os núcleos disponíveis
 
 def calcular_digito(cpf, peso_inicial):
     soma = sum(int(digito) * peso for digito, peso in zip(cpf, range(peso_inicial, 1, -1)))
@@ -16,48 +15,53 @@ def gerar_cpf_valido(nove_digitos):
     d2 = calcular_digito(nove_digitos + d1, 11)
     return nove_digitos + d1 + d2
 
-def gerar_cpfs_validos():
-    if os.path.exists(ARQUIVO):
-        print(f"[✔] Arquivo '{ARQUIVO}' já existe. Pulando geração.")
-        return
-
-    print("[...] Gerando CPFs válidos (modo otimizado)...")
-    buffer = []
-
-    with open(ARQUIVO, "w") as f:
-        for i in range(1_000_000_000):  # 9 primeiros dígitos
+def gerar_cpfs_fatia(inicio, fim, id_processo):
+    arquivo_parcial = f"temp_cpfs_{id_processo}.txt"
+    with open(arquivo_parcial, "w") as f:
+        buffer = []
+        for i in range(inicio, fim):
             base = f"{i:09d}"
-            cpf_completo = gerar_cpf_valido(base)
-            buffer.append(cpf_completo + "\n")
+            cpf = gerar_cpf_valido(base)
+            buffer.append(cpf + "\n")
 
-            if len(buffer) >= BUFFER_SIZE:
+            if len(buffer) >= 100_000:
                 f.writelines(buffer)
                 buffer.clear()
 
-            if i % 500_000 == 0:
-                print(f" > {i:,} CPFs válidos gerados...")
-
-        # Escreve o restante
         if buffer:
             f.writelines(buffer)
+    print(f"[✔] Processo {id_processo} finalizou: {fim - inicio:,} CPFs.")
 
-    print(f"[✔] Arquivo '{ARQUIVO}' gerado com sucesso!")
+def gerar_cpfs_com_processos():
+    if os.path.exists(ARQUIVO_FINAL):
+        print(f"[✔] Arquivo '{ARQUIVO_FINAL}' já existe. Pulando geração.")
+        return
 
-def iniciar_servidor():
-    porta = 8000
-    os.chdir(os.path.abspath("."))
+    print(f"[🚀] Gerando CPFs com {N_PROCESSOS} núcleos...")
 
-    handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", porta), handler) as httpd:
-        print(f"[🌐] Servidor iniciado: http://localhost:{porta}")
-        print(f"[⬇] Baixe aqui: http://localhost:{porta}/{ARQUIVO}")
-        httpd.serve_forever()
+    tamanho_fatia = CPFS_TOTAL // N_PROCESSOS
+    processos = []
+
+    for i in range(N_PROCESSOS):
+        inicio = i * tamanho_fatia
+        fim = (i + 1) * tamanho_fatia if i < N_PROCESSOS - 1 else CPFS_TOTAL
+        p = multiprocessing.Process(target=gerar_cpfs_fatia, args=(inicio, fim, i))
+        processos.append(p)
+        p.start()
+
+    for p in processos:
+        p.join()
+
+    print("[🔗] Unindo arquivos parciais...")
+
+    with open(ARQUIVO_FINAL, "w") as final:
+        for i in range(N_PROCESSOS):
+            parcial = f"temp_cpfs_{i}.txt"
+            with open(parcial, "r") as temp:
+                final.writelines(temp.readlines())
+            os.remove(parcial)
+
+    print(f"[✅] Geração finalizada! Arquivo salvo como '{ARQUIVO_FINAL}'.")
 
 if __name__ == "__main__":
-    gerar_cpfs_validos()
-
-    servidor_thread = threading.Thread(target=iniciar_servidor)
-    servidor_thread.daemon = True
-    servidor_thread.start()
-
-    input("\nPressione ENTER para encerrar o servidor...\n")
+    gerar_cpfs_com_processos()
