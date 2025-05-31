@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 NC='\033[0m' # Sem cor
 
-# Função para linha separadora
+# Linha separadora
 divider() {
     echo -e "${BLUE}==============================================${NC}"
 }
@@ -20,7 +20,8 @@ echo -e "${CYAN}        🔍 CONSULTA COMPLETA DE SITE 🔍        "
 divider
 
 # Solicita domínio ao usuário
-read -p "$(echo -e ${YELLOW}Digite o domínio (ex: exemplo.com): ${NC})" DOMINIO
+echo -ne "${YELLOW}Digite o domínio (ex: exemplo.com): ${NC}"
+read DOMINIO
 
 # Verifica se foi digitado algo
 if [[ -z "$DOMINIO" ]]; then
@@ -52,7 +53,7 @@ for tipo in A AAAA MX NS TXT; do
     dig +short "$DOMINIO" "$tipo" | tee -a "$OUTPUT"
 done
 
-# IP e informações geográficas
+# IP e localização
 IP=$(dig +short "$DOMINIO" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n 1)
 if [ -n "$IP" ]; then
     divider
@@ -83,7 +84,7 @@ echo -e "${CYAN}⏱️ Tempo de resposta e status:${NC}"
 divider | tee -a "$OUTPUT"
 curl -o /dev/null -s -w "Código HTTP: %{http_code}\nTempo Total: %{time_total} segundos\n" "$DOMINIO" | tee -a "$OUTPUT"
 
-# Final
+# Fim
 divider
 echo -e "${GREEN}✅ Consulta finalizada! Relatório salvo em: ${YELLOW}$OUTPUT${NC}"
 divider
