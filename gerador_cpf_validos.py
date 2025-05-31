@@ -1,12 +1,12 @@
-import multiprocessing
 import os
+import multiprocessing
 import time
-import sys
 
-ARQUIVO_FINAL = "wordlist_cpf.txt"
-CPFS_TOTAL = 1_000_000_000
+DIRETORIO_SAIDA = "cpfs_gerados"
+ARQUIVO_FINAL = os.path.join(DIRETORIO_SAIDA, "wordlist_cpf.txt")
+TOTAL_CPFS = 1_000_000_000
 N_PROCESSOS = multiprocessing.cpu_count()
-BUFFER_SIZE = 100_000
+BUFFER_SIZE = 1_000_000
 
 def calcular_digito(cpf, peso_inicial):
     soma = sum(int(digito) * peso for digito, peso in zip(cpf, range(peso_inicial, 1, -1)))
@@ -18,76 +18,68 @@ def gerar_cpf_valido(nove_digitos):
     d2 = calcular_digito(nove_digitos + d1, 11)
     return nove_digitos + d1 + d2
 
-def gerar_cpfs_fatia(inicio, fim, id_processo, contador):
-    arquivo_parcial = f"temp_cpfs_{id_processo}.txt"
-    with open(arquivo_parcial, "w") as f:
-        buffer = []
+def gerar_cpfs_faixa(inicio, fim, idx):
+    arquivo_saida = os.path.join(DIRETORIO_SAIDA, f"temp_cpfs_{idx}.txt")
+    buffer = []
+    with open(arquivo_saida, "w") as f:
         for i in range(inicio, fim):
-            base = f"{i:09d}"
+            base = str(i).zfill(9)
             cpf = gerar_cpf_valido(base)
             buffer.append(cpf + "\n")
-
             if len(buffer) >= BUFFER_SIZE:
                 f.writelines(buffer)
                 buffer.clear()
-
-            with contador.get_lock():
-                contador.value += 1
-
         if buffer:
             f.writelines(buffer)
-    print(f"\n[✔] Processo {id_processo} finalizou.")
 
-def exibir_progresso(contador):
-    total = CPFS_TOTAL
-    start_time = time.time()
-    while contador.value < total:
-        porcentagem = (contador.value / total) * 100
-        elapsed = time.time() - start_time
-        cps = contador.value / elapsed if elapsed > 0 else 0
-        sys.stdout.write(f"\r[⏳] Progresso: {contador.value:,} / {total:,} ({porcentagem:.2f}%) | {cps:,.0f} CPFs/s")
-        sys.stdout.flush()
-        time.sleep(0.5)
-    print()  # Nova linha no fim da barra de progresso
+def monitorar_progresso():
+    total_anterior = 0
+    while not os.path.exists(ARQUIVO_FINAL):
+        time.sleep(5)
+        total = 0
+        for nome in os.listdir(DIRETORIO_SAIDA):
+            if nome.startswith("temp_cpfs_") and nome.endswith(".txt"):
+                caminho = os.path.join(DIRETORIO_SAIDA, nome)
+                try:
+                    total += os.path.getsize(caminho)
+                except:
+                    pass
+        linhas_estimadas = total // 12
+        percentual = (linhas_estimadas / TOTAL_CPFS) * 100
+        velocidade = (linhas_estimadas - total_anterior) / 5
+        print(f"[📊] Progresso: {percentual:.2f}% | {linhas_estimadas:,} CPFs | {velocidade:,.0f} CPFs/s")
+        total_anterior = linhas_estimadas
 
-def gerar_cpfs_com_processos():
-    if os.path.exists(ARQUIVO_FINAL):
-        print(f"[✔] Arquivo '{ARQUIVO_FINAL}' já existe. Pulando geração.")
-        return
-
-    print(f"[🚀] Gerando CPFs com {N_PROCESSOS} núcleos...")
-
-    tamanho_fatia = CPFS_TOTAL // N_PROCESSOS
+def main():
+    os.makedirs(DIRETORIO_SAIDA, exist_ok=True)
+    
+    print(f"[🚀] Iniciando geração com {N_PROCESSOS} núcleos...")
+    blocos = TOTAL_CPFS // N_PROCESSOS
     processos = []
-    contador = multiprocessing.Value('i', 0)
 
-    # Inicia processo de progresso
-    monitor = multiprocessing.Process(target=exibir_progresso, args=(contador,))
+    monitor = multiprocessing.Process(target=monitorar_progresso)
     monitor.start()
 
-    # Inicia processos de geração
     for i in range(N_PROCESSOS):
-        inicio = i * tamanho_fatia
-        fim = (i + 1) * tamanho_fatia if i < N_PROCESSOS - 1 else CPFS_TOTAL
-        p = multiprocessing.Process(target=gerar_cpfs_fatia, args=(inicio, fim, i, contador))
-        processos.append(p)
+        inicio = i * blocos
+        fim = TOTAL_CPFS if i == N_PROCESSOS - 1 else (i + 1) * blocos
+        p = multiprocessing.Process(target=gerar_cpfs_faixa, args=(inicio, fim, i))
         p.start()
+        processos.append(p)
 
     for p in processos:
         p.join()
 
-    monitor.join()
-
-    print("[🔗] Unindo arquivos parciais...")
-
+    print("[🔗] Unindo arquivos temporários...")
     with open(ARQUIVO_FINAL, "w") as final:
         for i in range(N_PROCESSOS):
-            parcial = f"temp_cpfs_{i}.txt"
-            with open(parcial, "r") as temp:
+            arquivo_temp = os.path.join(DIRETORIO_SAIDA, f"temp_cpfs_{i}.txt")
+            with open(arquivo_temp, "r") as temp:
                 final.writelines(temp.readlines())
-            os.remove(parcial)
+            os.remove(arquivo_temp)
 
-    print(f"[✅] Geração finalizada! Arquivo salvo como '{ARQUIVO_FINAL}'.")
+    print(f"[✅] Geração finalizada! Arquivo salvo em: {ARQUIVO_FINAL}")
+    monitor.terminate()
 
 if __name__ == "__main__":
-    gerar_cpfs_com_processos()
+    main()
