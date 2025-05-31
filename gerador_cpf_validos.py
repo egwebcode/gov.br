@@ -1,11 +1,8 @@
-import os
-import multiprocessing
 import time
+import os
 
-DIRETORIO_SAIDA = "cpfs_gerados"
-ARQUIVO_FINAL = os.path.join(DIRETORIO_SAIDA, "wordlist_cpf.txt")
-TOTAL_CPFS = 1_000_000_000
-N_PROCESSOS = multiprocessing.cpu_count()
+ARQUIVO = "wordlist_cpf.txt"
+TOTAL = 1_000_000_000
 BUFFER_SIZE = 1_000_000
 
 def calcular_digito(cpf, peso_inicial):
@@ -18,68 +15,41 @@ def gerar_cpf_valido(nove_digitos):
     d2 = calcular_digito(nove_digitos + d1, 11)
     return nove_digitos + d1 + d2
 
-def gerar_cpfs_faixa(inicio, fim, idx):
-    arquivo_saida = os.path.join(DIRETORIO_SAIDA, f"temp_cpfs_{idx}.txt")
+def gerar_cpfs_validos():
+    if os.path.exists(ARQUIVO):
+        print(f"[✔] Arquivo '{ARQUIVO}' já existe. Pulando geração.")
+        return
+
+    print("[🚀] Gerando todos os CPFs válidos (modo rápido em 1 núcleo)...")
+    inicio = time.time()
     buffer = []
-    with open(arquivo_saida, "w") as f:
-        for i in range(inicio, fim):
+    escritos = 0
+    ultimo_report = time.time()
+
+    with open(ARQUIVO, "w") as f:
+        for i in range(TOTAL):
             base = str(i).zfill(9)
             cpf = gerar_cpf_valido(base)
             buffer.append(cpf + "\n")
+            escritos += 1
+
             if len(buffer) >= BUFFER_SIZE:
                 f.writelines(buffer)
                 buffer.clear()
+
+            # Atualiza progresso a cada 5 segundos
+            if time.time() - ultimo_report >= 5:
+                porcentagem = (escritos / TOTAL) * 100
+                velocidade = escritos / (time.time() - inicio)
+                print(f"[⏳] {porcentagem:.2f}% gerado | {escritos:,} CPFs | {velocidade:,.0f} CPFs/s")
+                ultimo_report = time.time()
+
         if buffer:
             f.writelines(buffer)
 
-def monitorar_progresso():
-    total_anterior = 0
-    while not os.path.exists(ARQUIVO_FINAL):
-        time.sleep(5)
-        total = 0
-        for nome in os.listdir(DIRETORIO_SAIDA):
-            if nome.startswith("temp_cpfs_") and nome.endswith(".txt"):
-                caminho = os.path.join(DIRETORIO_SAIDA, nome)
-                try:
-                    total += os.path.getsize(caminho)
-                except:
-                    pass
-        linhas_estimadas = total // 12
-        percentual = (linhas_estimadas / TOTAL_CPFS) * 100
-        velocidade = (linhas_estimadas - total_anterior) / 5
-        print(f"[📊] Progresso: {percentual:.2f}% | {linhas_estimadas:,} CPFs | {velocidade:,.0f} CPFs/s")
-        total_anterior = linhas_estimadas
-
-def main():
-    os.makedirs(DIRETORIO_SAIDA, exist_ok=True)
-    
-    print(f"[🚀] Iniciando geração com {N_PROCESSOS} núcleos...")
-    blocos = TOTAL_CPFS // N_PROCESSOS
-    processos = []
-
-    monitor = multiprocessing.Process(target=monitorar_progresso)
-    monitor.start()
-
-    for i in range(N_PROCESSOS):
-        inicio = i * blocos
-        fim = TOTAL_CPFS if i == N_PROCESSOS - 1 else (i + 1) * blocos
-        p = multiprocessing.Process(target=gerar_cpfs_faixa, args=(inicio, fim, i))
-        p.start()
-        processos.append(p)
-
-    for p in processos:
-        p.join()
-
-    print("[🔗] Unindo arquivos temporários...")
-    with open(ARQUIVO_FINAL, "w") as final:
-        for i in range(N_PROCESSOS):
-            arquivo_temp = os.path.join(DIRETORIO_SAIDA, f"temp_cpfs_{i}.txt")
-            with open(arquivo_temp, "r") as temp:
-                final.writelines(temp.readlines())
-            os.remove(arquivo_temp)
-
-    print(f"[✅] Geração finalizada! Arquivo salvo em: {ARQUIVO_FINAL}")
-    monitor.terminate()
+    duracao = time.time() - inicio
+    print(f"\n[✅] Finalizado em {duracao:.2f} segundos ({duracao/60:.2f} minutos)")
+    print(f"[📁] Arquivo salvo como: {ARQUIVO}")
 
 if __name__ == "__main__":
-    main()
+    gerar_cpfs_validos()
