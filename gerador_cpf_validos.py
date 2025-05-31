@@ -1,52 +1,52 @@
-import time
+import http.server
+import socketserver
+import threading
 import os
 
 ARQUIVO = "wordlist_cpf.txt"
-TOTAL = 1_000_000_000
-INTERVALO_LOG = 100_000  # Atualiza o progresso a cada 100 mil gerados
-BUFFER_SIZE = 1_000_000
 
 def calcular_digito(cpf, peso_inicial):
-    soma = sum(int(cpf[i]) * (peso_inicial - i) for i in range(len(cpf)))
+    soma = sum(int(digito) * peso for digito, peso in zip(cpf, range(peso_inicial, 1, -1)))
     resto = soma % 11
     return '0' if resto < 2 else str(11 - resto)
+
+def gerar_cpf_valido(nove_digitos):
+    d1 = calcular_digito(nove_digitos, 10)
+    d2 = calcular_digito(nove_digitos + d1, 11)
+    return nove_digitos + d1 + d2
 
 def gerar_cpfs_validos():
     if os.path.exists(ARQUIVO):
         print(f"[✔] Arquivo '{ARQUIVO}' já existe. Pulando geração.")
         return
 
-    print("🚀 Iniciando geração de CPFs válidos...\n")
-    inicio = time.time()
-    ultimo_log = 0
-    escritos = 0
+    print("[...] Gerando CPFs válidos (apenas números)...")
+    with open(ARQUIVO, "w") as f:
+        for i in range(1000000000):  # 9 primeiros dígitos
+            base = str(i).zfill(9)
+            cpf_completo = gerar_cpf_valido(base)
+            f.write(cpf_completo + "\n")
 
-    with open(ARQUIVO, "w", buffering=1024*1024*8) as f:
-        while escritos < TOTAL:
-            buffer_inicio = escritos
-            buffer_fim = min(escritos + BUFFER_SIZE, TOTAL)
+            if i % 50000 == 0:
+                print(f" > {i:,} CPFs válidos gerados...")
 
-            blocos = (
-                f"{i:09d}{calcular_digito(f'{i:09d}', 10)}{calcular_digito(f'{i:09d}{calcular_digito(f'{i:09d}', 10)}', 11)}\n"
-                for i in range(buffer_inicio, buffer_fim)
-            )
-            f.write(''.join(blocos))
-            escritos = buffer_fim
+    print(f"[✔] Arquivo '{ARQUIVO}' gerado com sucesso!")
 
-            # Histórico organizado a cada 100 mil gerados
-            if escritos - ultimo_log >= INTERVALO_LOG:
-                tempo_passado = time.time() - inicio
-                porcentagem = (escritos / TOTAL) * 100
-                velocidade = escritos / tempo_passado
-                print(
-                    f"📊 Progresso: {porcentagem:6.2f}%  |  Gerados: {escritos:,}  |  Velocidade: {velocidade:,.0f} CPFs/s"
-                )
-                ultimo_log = escritos
+def iniciar_servidor():
+    porta = 8000
+    os.chdir(os.path.abspath("."))
 
-    duracao = time.time() - inicio
-    print("\n✅ Finalizado!")
-    print(f"🕒 Tempo total: {duracao:.2f} segundos ({duracao/60:.2f} minutos)")
-    print(f"📁 Arquivo salvo como: {ARQUIVO}")
+    handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", porta), handler) as httpd:
+        print(f"[🌐] Servidor iniciado: http://localhost:{porta}")
+        print(f"[⬇] Baixe aqui: http://localhost:{porta}/{ARQUIVO}")
+        httpd.serve_forever()
 
 if __name__ == "__main__":
     gerar_cpfs_validos()
+
+    servidor_thread = threading.Thread(target=iniciar_servidor)
+    servidor_thread.daemon = True
+    servidor_thread.start()
+
+    input("\nPressione ENTER para encerrar o servidor...\n")
