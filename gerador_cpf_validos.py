@@ -27,7 +27,7 @@ def gerar_cpfs_validos():
             cpf_completo = gerar_cpf_valido(base)
             f.write(cpf_completo + "\n")
 
-            if i % 50000 == 0:
+            if i % 500000 == 0:
                 print(f" > {i:,} CPFs válidos gerados...")
 
     print(f"[✔] Arquivo '{ARQUIVO}' gerado com sucesso!")
