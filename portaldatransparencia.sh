@@ -8,7 +8,7 @@ LINHA="────────────────────────�
 # ───────── CABEÇALHO BONITO COM SEU NOME ─────────
 clear
 echo -e "\e[1;36m$LINHA"
-echo -e "\e[1;32m        EG WEBCODE - CONSULTAR NOME"
+echo -e "\e[1;32m        EG WEBCODE - CONSULTAR NOME OU CPF"
 echo -e "\e[1;36m$LINHA\e[0m"
 
 # ───────── INPUT DO USUÁRIO ─────────
