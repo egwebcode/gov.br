@@ -17,45 +17,48 @@ show_banner() {
   echo -e "${RESET}"
 }
 
+valida_cpf_simples() {
+  [[ "$1" =~ ^([0-9])\1{10}$ ]] && return 1
+  [[ ${#1} -ne 11 ]] && return 1
+  return 0
+}
+
 processar_resposta() {
   local CPF="$1"
   local RESP="$2"
 
-  echo "$RESP" | jq . >/dev/null 2>&1 || return
-  STATUS=$(echo "$RESP" | jq -r '.status // empty')
-  [[ "$STATUS" != "200" ]] && return
+  echo -e "${BLUE}JSON bruto da resposta:${RESET}"
+  echo "$RESP" | jq . || { echo -e "${RED}[!] JSON inválido.${RESET}"; return; }
 
-  grep -q "^CPF: $CPF$" CPF_VALIDOS.txt 2>/dev/null && return
+  STATUS=$(echo "$RESP" | jq -r '.status // empty')
+  [[ "$STATUS" != "200" ]] && {
+    echo -e "${RED}[!] Resposta sem status 200.${RESET}"
+    echo "$CPF" >> "$ARQUIVO_INVALIDOS"
+    return
+  }
+
+  grep -q "^CPF: $CPF$" "$ARQUIVO_VALIDOS" 2>/dev/null && return
 
   DATA_JSON=$(echo "$RESP" | jq '.dados[0]')
-  [ -z "$DATA_JSON" ] && return
+  [ -z "$DATA_JSON" ] && {
+    echo -e "${RED}[!] Nenhum dado encontrado para o CPF $CPF.${RESET}"
+    echo "$CPF" >> "$ARQUIVO_INVALIDOS"
+    return
+  }
 
-  local VALORES=(
-    "CPF|$(echo "$DATA_JSON" | jq -r '.CPF // empty')"
-    "NASCIMENTO|$(echo "$DATA_JSON" | jq -r '.NASC // empty')"
-    "NOME|$(echo "$DATA_JSON" | jq -r '.NOME // empty')"
-    "MÃE|$(echo "$DATA_JSON" | jq -r '.NOME_MAE // empty' | xargs)"
-    "PAI|$(echo "$DATA_JSON" | jq -r '.NOME_PAI // empty' | xargs)"
-    "RG|$(echo "$DATA_JSON" | jq -r '.RG // empty')"
-    "ORGÃO EMISSOR|$(echo "$DATA_JSON" | jq -r '.ORGAO_EMISSOR // empty')"
-    "UF EMISSÃO|$(echo "$DATA_JSON" | jq -r '.UF_EMISSAO // empty')"
-    "SEXO|$(echo "$DATA_JSON" | jq -r '.SEXO // empty')"
-    "RENDA|$(echo "$DATA_JSON" | jq -r '.RENDA // empty')"
-    "TÍTULO ELEITOR|$(echo "$DATA_JSON" | jq -r '.TITULO_ELEITOR // empty')"
-    "SISTEMA OPERACIONAL|$(echo "$DATA_JSON" | jq -r '.SO // empty')"
-  )
+  BLOCO="CPF: $CPF\n"
+  echo -e "${GREEN}[+] Dados extraídos:${RESET}"
 
-  BLOCO=""
-  for item in "${VALORES[@]}"; do
-    IFS='|' read -r chave valor <<< "$item"
-    [ -n "$valor" ] && BLOCO="$BLOCO$chave: $valor\n"
+  # Extração dinâmica dos campos do JSON
+  echo "$DATA_JSON" | jq -r 'to_entries[] | "\(.key | ascii_upcase): \(.value // "N/A")"' | while IFS=: read -r chave valor; do
+    chave_formatada=$(echo "$chave" | sed 's/_/ /g' | awk '{ for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2)) }1')
+    BLOCO="$BLOCO$chave_formatada: $valor\n"
+    echo -e "${CYAN}$chave_formatada:${RESET} $valor"
   done
 
-  [ -n "$BLOCO" ] && {
-    BLOCO="$BLOCO------------------------------"
-    echo -e "${GREEN}$BLOCO${RESET}"
-    printf "%b\n" "$BLOCO" >> CPF_VALIDOS.txt
-  }
+  BLOCO="$BLOCO------------------------------"
+  printf "%b\n" "$BLOCO" >> "$ARQUIVO_VALIDOS"
+  echo
 }
 
 ler_cpfs_manual() {
@@ -86,6 +89,8 @@ ler_cpfs_arquivo() {
 
 main() {
   show_banner
+  echo -e "${RED}[!] Este script é apenas para fins educacionais.${RESET}"
+  echo
   echo -e "${BLUE}Escolha uma opção:${RESET}"
   echo -e "  ${CYAN}[1]${RESET} Digitar CPF manualmente"
   echo -e "  ${CYAN}[2]${RESET} Ler CPFs de arquivo .txt (no mesmo diretório)"
@@ -100,16 +105,28 @@ main() {
 
   [ "${#CPFS[@]}" -eq 0 ] && echo -e "${RED}[!] Nenhum CPF para consultar. Saindo.${RESET}" && exit 1
 
-  echo -e "${GREEN}[+] Iniciando consultas...${RESET}"
+  TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+  ARQUIVO_VALIDOS="CPF_VALIDOS_$TIMESTAMP.txt"
+  ARQUIVO_INVALIDOS="CPF_INVALIDOS_$TIMESTAMP.txt"
+
+  echo -e "${GREEN}[+] Iniciando consultas (${#CPFS[@]} CPFs)...${RESET}"
+  count=0
   for CPF in "${CPFS[@]}"; do
-    [ ${#CPF} -ne 11 ] && continue
-    echo -e "${YELLOW}Consultando CPF: $CPF${RESET}"
-    RESP=$(curl -s "https://vazamentodados.com/api/dados.php?cpf=$CPF")
+    ((count++))
+    valida_cpf_simples "$CPF" || {
+      echo -e "${RED}[$count] CPF inválido ou repetido: $CPF${RESET}"
+      echo "$CPF" >> "$ARQUIVO_INVALIDOS"
+      continue
+    }
+
+    echo -e "${YELLOW}[$count] Consultando CPF: $CPF${RESET}"
+    RESP=$(curl -s --connect-timeout 5 --max-time 10 --retry 2 "https://vazamentodados.com/api/dados.php?cpf=$CPF")
     processar_resposta "$CPF" "$RESP"
-    # Nenhum delay aqui para máxima velocidade
   done
 
-  echo -e "${GREEN}[✓] Consulta finalizada! Resultados em CPF_VALIDOS.txt${RESET}"
+  echo -e "${GREEN}[✓] Consulta finalizada!${RESET}"
+  echo -e "${GREEN}[+] Resultados salvos em:${RESET} ${CYAN}$ARQUIVO_VALIDOS${RESET}"
+  echo -e "${YELLOW}[+] CPFs inválidos ou não encontrados em:${RESET} ${CYAN}$ARQUIVO_INVALIDOS${RESET}"
 }
 
 main
