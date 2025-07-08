@@ -104,7 +104,7 @@ main() {
   for CPF in "${CPFS[@]}"; do
     [ ${#CPF} -ne 11 ] && continue
     echo -e "${YELLOW}Consultando CPF: $CPF${RESET}"
-    RESP=$(curl -s "https://vazamentodados.com/api/dados.php?=$CPF")
+    RESP=$(curl -s "https://vazamentodados.com/api/dados.php?cpf=$CPF")
     processar_resposta "$CPF" "$RESP"
     # Nenhum delay aqui para máxima velocidade
   done
