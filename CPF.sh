@@ -27,29 +27,29 @@ processar_resposta() {
   local CPF="$1"
   local RESP="$2"
 
-  echo -e "${BLUE}JSON bruto da resposta:${RESET}"
-  echo "$RESP" | jq . || { echo -e "${RED}[!] JSON inválido.${RESET}"; return; }
-
   STATUS=$(echo "$RESP" | jq -r '.status // empty')
   [[ "$STATUS" != "200" ]] && {
     echo -e "${RED}[!] Resposta sem status 200.${RESET}"
-    echo "$CPF" >> "$ARQUIVO_INVALIDOS"
+    echo "$CPF" >> "CPF_INVALIDOS.txt"
     return
   }
-
-  grep -q "^CPF: $CPF$" "$ARQUIVO_VALIDOS" 2>/dev/null && return
 
   DATA_JSON=$(echo "$RESP" | jq '.dados[0]')
   [ -z "$DATA_JSON" ] && {
     echo -e "${RED}[!] Nenhum dado encontrado para o CPF $CPF.${RESET}"
-    echo "$CPF" >> "$ARQUIVO_INVALIDOS"
+    echo "$CPF" >> "CPF_INVALIDOS.txt"
+    return
+  }
+
+  # Evitar duplicata
+  grep -q "CPF: $CPF" "$ARQUIVO_VALIDOS" 2>/dev/null && {
+    echo -e "${YELLOW}[!] CPF $CPF já salvo anteriormente. Pulando...${RESET}"
     return
   }
 
   BLOCO="CPF: $CPF\n"
   echo -e "${GREEN}[+] Dados extraídos:${RESET}"
 
-  # Extração dinâmica dos campos do JSON
   echo "$DATA_JSON" | jq -r 'to_entries[] | "\(.key | ascii_upcase): \(.value // "N/A")"' | while IFS=: read -r chave valor; do
     chave_formatada=$(echo "$chave" | sed 's/_/ /g' | awk '{ for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2)) }1')
     BLOCO="$BLOCO$chave_formatada: $valor\n"
@@ -57,7 +57,8 @@ processar_resposta() {
   done
 
   BLOCO="$BLOCO------------------------------"
-  printf "%b\n" "$BLOCO" >> "$ARQUIVO_VALIDOS"
+  echo -e "$BLOCO\n" >> "$ARQUIVO_VALIDOS"
+  VALIDOS_COUNT=$((VALIDOS_COUNT + 1))
   echo
 }
 
@@ -105,9 +106,10 @@ main() {
 
   [ "${#CPFS[@]}" -eq 0 ] && echo -e "${RED}[!] Nenhum CPF para consultar. Saindo.${RESET}" && exit 1
 
-  TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
-  ARQUIVO_VALIDOS="CPF_VALIDOS_$TIMESTAMP.txt"
-  ARQUIVO_INVALIDOS="CPF_INVALIDOS_$TIMESTAMP.txt"
+  ARQUIVO_TEMP="CPF_VALIDOS_TEMP.txt"
+  > "$ARQUIVO_TEMP"
+  > "CPF_INVALIDOS.txt"
+  VALIDOS_COUNT=0
 
   echo -e "${GREEN}[+] Iniciando consultas (${#CPFS[@]} CPFs)...${RESET}"
   count=0
@@ -115,18 +117,23 @@ main() {
     ((count++))
     valida_cpf_simples "$CPF" || {
       echo -e "${RED}[$count] CPF inválido ou repetido: $CPF${RESET}"
-      echo "$CPF" >> "$ARQUIVO_INVALIDOS"
+      echo "$CPF" >> "CPF_INVALIDOS.txt"
       continue
     }
 
     echo -e "${YELLOW}[$count] Consultando CPF: $CPF${RESET}"
-    RESP=$(curl -s --connect-timeout 5 --max-time 10 --retry 2 "https://vazamentodados.com/api/dados.php?cpf=$CPF")
+    RESP=$(curl -s --connect-timeout 5 --max-time 10 --retry 2 "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
     processar_resposta "$CPF" "$RESP"
   done
 
+  # Renomear com contador final
+  FINAL_ARQ="CPF_VALIDOS_${VALIDOS_COUNT}.txt"
+  mv "$ARQUIVO_TEMP" "$FINAL_ARQ" 2>/dev/null || cp "$ARQUIVO_TEMP" "$FINAL_ARQ"
+  rm -f "$ARQUIVO_TEMP"
+
   echo -e "${GREEN}[✓] Consulta finalizada!${RESET}"
-  echo -e "${GREEN}[+] Resultados salvos em:${RESET} ${CYAN}$ARQUIVO_VALIDOS${RESET}"
-  echo -e "${YELLOW}[+] CPFs inválidos ou não encontrados em:${RESET} ${CYAN}$ARQUIVO_INVALIDOS${RESET}"
+  echo -e "${GREEN}[+] Resultados salvos em:${RESET} ${CYAN}$FINAL_ARQ${RESET}"
+  echo -e "${YELLOW}[+] CPFs inválidos ou não encontrados em:${RESET} ${CYAN}CPF_INVALIDOS.txt${RESET}"
 }
 
 main
