@@ -8,12 +8,14 @@ BLUE="\033[1;34m"
 CYAN="\033[1;36m"
 RESET="\033[0m"
 
+ARQUIVO_SAIDA="CPF_VALIDOS.txt"
+
 show_banner() {
   clear
   echo -e "${CYAN}"
-  echo "╔═══════════════════════════════════════════════════════╗"
-  echo "║         🔍 CONSULTAR CPF AUTOMÁTICO - EG WEBCODE       ║"
-  echo "╚═══════════════════════════════════════════════════════╝"
+  echo "╔════════════════════════════════════════════════════╗"
+  echo "║       🚀 CONSULTA TURBO DE CPF - NOVA API          ║"
+  echo "╚════════════════════════════════════════════════════╝"
   echo -e "${RESET}"
 }
 
@@ -27,45 +29,31 @@ processar_resposta() {
   local CPF="$1"
   local RESP="$2"
 
-  STATUS=$(echo "$RESP" | jq -r '.status // empty')
-  [[ "$STATUS" != "200" ]] && {
-    echo -e "${RED}[!] Resposta sem status 200.${RESET}"
-    echo "$CPF" >> "CPF_INVALIDOS.txt"
-    return
-  }
+  [[ -z "$RESP" || "$RESP" == "null" ]] && return
 
-  DATA_JSON=$(echo "$RESP" | jq '.dados[0]')
-  [ -z "$DATA_JSON" ] && {
-    echo -e "${RED}[!] Nenhum dado encontrado para o CPF $CPF.${RESET}"
-    echo "$CPF" >> "CPF_INVALIDOS.txt"
+  # Detectar erro padrão
+  if echo "$RESP" | jq -e '.erro? // empty' &>/dev/null; then
     return
-  }
+  fi
 
-  # Evitar duplicata
-  grep -q "CPF: $CPF" "$ARQUIVO_VALIDOS" 2>/dev/null && {
-    echo -e "${YELLOW}[!] CPF $CPF já salvo anteriormente. Pulando...${RESET}"
-    return
-  }
+  # Verifica se já está salvo
+  grep -q "CPF: $CPF" "$ARQUIVO_SAIDA" 2>/dev/null && return
 
   BLOCO="CPF: $CPF\n"
-  echo -e "${GREEN}[+] Dados extraídos:${RESET}"
+  echo -e "${GREEN}[✓] Válido $CPF${RESET}"
 
-  echo "$DATA_JSON" | jq -r 'to_entries[] | "\(.key | ascii_upcase): \(.value // "N/A")"' | while IFS=: read -r chave valor; do
+  echo "$RESP" | jq -r 'to_entries[] | "\(.key | ascii_upcase): \(.value // "N/A")"' | while IFS=: read -r chave valor; do
     chave_formatada=$(echo "$chave" | sed 's/_/ /g' | awk '{ for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2)) }1')
     BLOCO="$BLOCO$chave_formatada: $valor\n"
-    echo -e "${CYAN}$chave_formatada:${RESET} $valor"
   done
 
   BLOCO="$BLOCO------------------------------"
-  echo -e "$BLOCO\n" >> "$ARQUIVO_VALIDOS"
-  VALIDOS_COUNT=$((VALIDOS_COUNT + 1))
-  echo
+  printf "%b\n" "$BLOCO" >> "$ARQUIVO_SAIDA"
 }
 
 ler_cpfs_manual() {
   echo -e "${YELLOW}[!] Digite os CPFs, um por linha."
-  echo "[!] Para iniciar a consulta, pressione ENTER 3 vezes seguidas.${RESET}"
-  echo
+  echo "[!] Pressione ENTER 3x para iniciar a consulta.${RESET}"
   CPFS=()
   EMPTY_LINES=0
   while true; do
@@ -94,46 +82,30 @@ main() {
   echo
   echo -e "${BLUE}Escolha uma opção:${RESET}"
   echo -e "  ${CYAN}[1]${RESET} Digitar CPF manualmente"
-  echo -e "  ${CYAN}[2]${RESET} Ler CPFs de arquivo .txt (no mesmo diretório)"
+  echo -e "  ${CYAN}[2]${RESET} Ler CPFs de arquivo .txt"
   echo
   read -p "Opção: " OPCAO
 
   case "$OPCAO" in
     1) ler_cpfs_manual ;;
-    2) read -p "Digite o nome do arquivo (ex: lista.txt): " ARQ && ler_cpfs_arquivo "$ARQ" ;;
-    *) echo -e "${RED}[!] Opção inválida. Saindo.${RESET}" && exit 1 ;;
+    2) read -p "Nome do arquivo (ex: lista.txt): " ARQ && ler_cpfs_arquivo "$ARQ" ;;
+    *) echo -e "${RED}[!] Opção inválida.${RESET}" && exit 1 ;;
   esac
 
-  [ "${#CPFS[@]}" -eq 0 ] && echo -e "${RED}[!] Nenhum CPF para consultar. Saindo.${RESET}" && exit 1
+  [ "${#CPFS[@]}" -eq 0 ] && echo -e "${RED}[!] Nenhum CPF fornecido.${RESET}" && exit 1
 
-  ARQUIVO_TEMP="CPF_VALIDOS_TEMP.txt"
-  > "$ARQUIVO_TEMP"
-  > "CPF_INVALIDOS.txt"
-  VALIDOS_COUNT=0
-
-  echo -e "${GREEN}[+] Iniciando consultas (${#CPFS[@]} CPFs)...${RESET}"
-  count=0
+  echo -e "${GREEN}[+] Iniciando consultas turbo...${RESET}"
   for CPF in "${CPFS[@]}"; do
-    ((count++))
     valida_cpf_simples "$CPF" || {
-      echo -e "${RED}[$count] CPF inválido ou repetido: $CPF${RESET}"
-      echo "$CPF" >> "CPF_INVALIDOS.txt"
+      echo -e "${RED}[X] Ignorado CPF inválido: $CPF${RESET}"
       continue
     }
-
-    echo -e "${YELLOW}[$count] Consultando CPF: $CPF${RESET}"
-    RESP=$(curl -s --connect-timeout 5 --max-time 10 --retry 2 "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
-    processar_resposta "$CPF" "$RESP"
+    echo -ne "${CYAN}[>] $CPF...${RESET} "
+    RESP=$(curl -s --connect-timeout 2 --max-time 5 "https://valores-nu.it.com/consult/consulta.php?cpf=$CPF")
+    processar_resposta "$CPF" "$RESP" &
   done
-
-  # Renomear com contador final
-  FINAL_ARQ="CPF_VALIDOS_${VALIDOS_COUNT}.txt"
-  mv "$ARQUIVO_TEMP" "$FINAL_ARQ" 2>/dev/null || cp "$ARQUIVO_TEMP" "$FINAL_ARQ"
-  rm -f "$ARQUIVO_TEMP"
-
-  echo -e "${GREEN}[✓] Consulta finalizada!${RESET}"
-  echo -e "${GREEN}[+] Resultados salvos em:${RESET} ${CYAN}$FINAL_ARQ${RESET}"
-  echo -e "${YELLOW}[+] CPFs inválidos ou não encontrados em:${RESET} ${CYAN}CPF_INVALIDOS.txt${RESET}"
+  wait
+  echo -e "${GREEN}[✓] Consulta finalizada. Resultado salvo em:${RESET} ${CYAN}$ARQUIVO_SAIDA${RESET}"
 }
 
 main
